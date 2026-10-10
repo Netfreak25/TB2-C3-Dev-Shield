@@ -1,0 +1,8 @@
+Designator,X_mm_from_left,Y_mm_from_USB_edge,Side,Solder_joints,Orientation
+JL,3.98,11.26,TOP,8,Inner rows only; sockets open upward; 15.24 mm row spacing.
+JR,19.22,11.26,TOP,8,Inner rows only; sockets open upward; 15.24 mm row spacing.
+J1,28.85,13.31,TOP,8,Notch LEFT; opening UP; pin 1 at USB end. Do not fit a right-angle type.
+JP1,28.85,1.65,TOP,2,Fit the two-pin header only. DO NOT supply or fit a removable shunt. Leave open.
+R1,36.0,5.01,TOP,2,Equivalent by stated specs allowed; horizontal body; no polarity.
+R2,36.0,14.93,TOP,2,Equivalent by stated specs allowed; horizontal body; no polarity.
+D1,36.0,20.75,TOP,2,Anode LEFT; cathode RIGHT (flat side). Mount upright; verify datasheet polarity.

@@ -1,0 +1,56 @@
+{
+  "status": "unverified build candidate",
+  "revision": "0.1",
+  "variant": "factory-assembled",
+  "qr": {
+    "payload": "Netfreak",
+    "side_mm_including_quiet_zone": 8.120000000000001,
+    "module_mm": 0.28,
+    "quiet_zone_modules": 4,
+    "actual_gerber_matrix_matches": true,
+    "actual_gerber_decoded": true,
+    "location": "TOP underneath ESP32",
+    "physical_print_scan": "pending"
+  },
+  "qr_back": {
+    "payload": "Netfreak",
+    "side_mm_including_quiet_zone": 8.120000000000001,
+    "module_mm": 0.28,
+    "quiet_zone_modules": 4,
+    "actual_gerber_matrix_matches": true,
+    "actual_gerber_decoded": true,
+    "location": "BOTTOM readable from rear",
+    "physical_print_scan": "pending"
+  },
+  "fzz_sha256": "c4d7fb767cfebf854f6efc0273905ad9bd246b9477d54e1901ea0ed4664bedb3",
+  "native_gerber_matches_model": true,
+  "exported_net_groups": 18,
+  "fzz_pcb_and_schematic_nets_match": true,
+  "gerber_outline_verified": true,
+  "board_mm": [
+    39.0,
+    22.52
+  ],
+  "plated_holes": 48,
+  "vias": 0,
+  "model_clearance_mm": 0.33,
+  "gerber_clearance_mm": 0.3299,
+  "copper_edge_clearance_mm": 0.35,
+  "paired_exposed_top_lands": 16,
+  "body_gap_min_mm": 1.05,
+  "outer_pad_to_component_body_min_mm": 1.69,
+  "native_drc": "passed",
+  "hardware_validated": false,
+  "open_checks": [
+    "Actual module castellations and underside clearance",
+    "Socket fit, iron access, USB plug and actual IDC cable housing",
+    "JP1 operation under load and SPI backfeed",
+    "ACT and two 16-MiB reads at 500 kHz against known-good dump"
+  ],
+  "manufacturing_adjustment": [
+    "Top solder-mask openings extended across 16 native copper bridges.",
+    "Rectangular outline tool centreline set to nominal 39 x 22.52 mm.",
+    "Unused legacy aperture definition removed from bottom silkscreen.",
+    "Native copper and drill bytes unchanged."
+  ]
+}

@@ -1,0 +1,15 @@
+*.ppk
+*.pem
+*.key
+*.p12
+*.pfx
+*.bin
+*.dump
+*token*.txt
+*Token*.txt
+.env
+.env.*
+.build/
+__pycache__/
+.DS_Store
+Thumbs.db

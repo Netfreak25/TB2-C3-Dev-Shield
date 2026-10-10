@@ -1,0 +1,505 @@
+{
+  "name": "TB2 C3 DEV SHIELD",
+  "variant": "factory-assembled; JP1 header without shunt",
+  "revision": "0.1",
+  "board_mm": [
+    39.0,
+    22.52
+  ],
+  "module_mm": [
+    2.6,
+    0,
+    18.0,
+    22.52
+  ],
+  "row_spacing_mm": 15.24,
+  "pads": [
+    {
+      "ref": "JL",
+      "pin": "1",
+      "net": "MISO",
+      "x": 3.9799999999999995,
+      "y": 2.369999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "1D",
+      "net": "MISO",
+      "x": 1.4399999999999995,
+      "y": 2.369999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "2",
+      "net": "CLK",
+      "x": 3.9799999999999995,
+      "y": 4.909999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "2D",
+      "net": "CLK",
+      "x": 1.4399999999999995,
+      "y": 4.909999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "3",
+      "net": "MOSI",
+      "x": 3.9799999999999995,
+      "y": 7.449999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "3D",
+      "net": "MOSI",
+      "x": 1.4399999999999995,
+      "y": 7.449999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "4",
+      "net": "GPIO8",
+      "x": 3.9799999999999995,
+      "y": 9.989999999999998,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "4D",
+      "net": "GPIO8",
+      "x": 1.4399999999999995,
+      "y": 9.989999999999998,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "5",
+      "net": "GPIO9",
+      "x": 3.9799999999999995,
+      "y": 12.53,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "5D",
+      "net": "GPIO9",
+      "x": 1.4399999999999995,
+      "y": 12.53,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "6",
+      "net": "GPIO10",
+      "x": 3.9799999999999995,
+      "y": 15.069999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "6D",
+      "net": "GPIO10",
+      "x": 1.4399999999999995,
+      "y": 15.069999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "7",
+      "net": "GPIO20",
+      "x": 3.9799999999999995,
+      "y": 17.61,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "7D",
+      "net": "GPIO20",
+      "x": 1.4399999999999995,
+      "y": 17.61,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "8",
+      "net": "GPIO21",
+      "x": 3.9799999999999995,
+      "y": 20.15,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JL",
+      "pin": "8D",
+      "net": "GPIO21",
+      "x": 1.4399999999999995,
+      "y": 20.15,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "1",
+      "net": "5V",
+      "x": 19.22,
+      "y": 2.369999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "1D",
+      "net": "5V",
+      "x": 21.759999999999998,
+      "y": 2.369999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "2",
+      "net": "GND",
+      "x": 19.22,
+      "y": 4.909999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "2D",
+      "net": "GND",
+      "x": 21.759999999999998,
+      "y": 4.909999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "3",
+      "net": "3V3_IN",
+      "x": 19.22,
+      "y": 7.449999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "3D",
+      "net": "3V3_IN",
+      "x": 21.759999999999998,
+      "y": 7.449999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "4",
+      "net": "CS",
+      "x": 19.22,
+      "y": 9.989999999999998,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "4D",
+      "net": "CS",
+      "x": 21.759999999999998,
+      "y": 9.989999999999998,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "5",
+      "net": "GPIO3",
+      "x": 19.22,
+      "y": 12.53,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "5D",
+      "net": "GPIO3",
+      "x": 21.759999999999998,
+      "y": 12.53,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "6",
+      "net": "GPIO2",
+      "x": 19.22,
+      "y": 15.069999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "6D",
+      "net": "GPIO2",
+      "x": 21.759999999999998,
+      "y": 15.069999999999999,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "7",
+      "net": "GPIO1",
+      "x": 19.22,
+      "y": 17.61,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "7D",
+      "net": "GPIO1",
+      "x": 21.759999999999998,
+      "y": 17.61,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "8",
+      "net": "GPIO0",
+      "x": 19.22,
+      "y": 20.15,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "JR",
+      "pin": "8D",
+      "net": "GPIO0",
+      "x": 21.759999999999998,
+      "y": 20.15,
+      "diameter": 1.8,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "1",
+      "net": "CS",
+      "x": 27.580000000000002,
+      "y": 9.5,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "2",
+      "net": "3V3_TARGET",
+      "x": 30.12,
+      "y": 9.5,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "3",
+      "net": "MISO",
+      "x": 27.580000000000002,
+      "y": 12.04,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "4",
+      "net": "3V3_TARGET",
+      "x": 30.12,
+      "y": 12.04,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "5",
+      "net": "3V3_TARGET",
+      "x": 27.580000000000002,
+      "y": 14.58,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "6",
+      "net": "CLK",
+      "x": 30.12,
+      "y": 14.58,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "7",
+      "net": "GND",
+      "x": 27.580000000000002,
+      "y": 17.12,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "J1",
+      "pin": "8",
+      "net": "MOSI",
+      "x": 30.12,
+      "y": 17.12,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "JP1",
+      "pin": "1",
+      "net": "3V3_IN",
+      "x": 27.580000000000002,
+      "y": 1.65,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "JP1",
+      "pin": "2",
+      "net": "3V3_TARGET",
+      "x": 30.12,
+      "y": 1.65,
+      "diameter": 1.9,
+      "drill": 1.1
+    },
+    {
+      "ref": "R1",
+      "pin": "1",
+      "net": "3V3_TARGET",
+      "x": 36.0,
+      "y": 1.2,
+      "diameter": 1.7,
+      "drill": 0.8
+    },
+    {
+      "ref": "R1",
+      "pin": "2",
+      "net": "CS",
+      "x": 36.0,
+      "y": 8.82,
+      "diameter": 1.7,
+      "drill": 0.8
+    },
+    {
+      "ref": "R2",
+      "pin": "1",
+      "net": "3V3_TARGET",
+      "x": 36.0,
+      "y": 11.12,
+      "diameter": 1.7,
+      "drill": 0.8
+    },
+    {
+      "ref": "R2",
+      "pin": "2",
+      "net": "LED_A",
+      "x": 36.0,
+      "y": 18.74,
+      "diameter": 1.7,
+      "drill": 0.8
+    },
+    {
+      "ref": "D1",
+      "pin": "A",
+      "net": "LED_A",
+      "x": 34.73,
+      "y": 20.75,
+      "diameter": 1.7,
+      "drill": 0.9
+    },
+    {
+      "ref": "D1",
+      "pin": "K",
+      "net": "CS",
+      "x": 37.27,
+      "y": 20.75,
+      "diameter": 1.7,
+      "drill": 0.9
+    }
+  ],
+  "bodies": {
+    "J1": [
+      24.35,
+      4.4,
+      33.35,
+      22.22
+    ],
+    "JP1": [
+      26.310000000000002,
+      0.38,
+      31.39,
+      2.92
+    ],
+    "R1": [
+      34.75,
+      1.86,
+      37.25,
+      8.16
+    ],
+    "R2": [
+      34.75,
+      11.78,
+      37.25,
+      18.08
+    ],
+    "D1": [
+      34.4,
+      19.15,
+      37.6,
+      22.35
+    ],
+    "JL": [
+      2.7299999999999995,
+      0.8499999999999992,
+      5.2299999999999995,
+      21.669999999999998
+    ],
+    "JR": [
+      17.97,
+      0.8499999999999992,
+      20.47,
+      21.669999999999998
+    ]
+  },
+  "sources": {
+    "SuperMini": "https://github.com/NologoTech/ESP32C3-Supermini/",
+    "J1": "https://www.we-online.com/components/products/datasheet/61200821621.pdf",
+    "D1": "https://www.kingbrightusa.com/images/catalog/SPEC/WP710A10LID.pdf",
+    "JL/JR": "https://www.we-online.com/components/products/datasheet/61300811821.pdf",
+    "module_headers": "https://www.we-online.com/components/products/datasheet/61300811121.pdf",
+    "JP1": "https://www.we-online.com/components/products/datasheet/61300211121.pdf",
+    "R1/R2": "https://yageogroup.com/content/datasheet/asset/file/YAGEO-MFR_DATASHEET",
+    "USB": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html"
+  },
+  "hardware_validated": false
+}
