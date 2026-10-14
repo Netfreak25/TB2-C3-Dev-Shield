@@ -1,5 +1,6 @@
-/* TB2 C3 Dev Shield flat dock, Rev. 0.2. Units: mm.
- * Two printable parts. USB edge y=0; PCB lower face pcb_z.
+/* TB2 C3 Dev Shield flat dock, Rev. 0.3. Units: mm.
+ * Construction coordinates follow the PCB drawing: USB edge y=0, +Y down.
+ * Outputs convert once to Cartesian +Y up; PCB lower face stays at pcb_z.
  * Hardware envelopes and physical fit remain unverified.
  * SPDX-License-Identifier: CERN-OHL-P-2.0
  */
@@ -103,6 +104,10 @@ assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
 
 module box(a,b) { translate(a) cube(b-a); }
+module pcb_to_world() {
+    // Preserve PCB top-view handedness: USB above, ESP32 left, connector right.
+    translate([0,pcb_d,0]) mirror([0,1,0]) children();
+}
 module outline(inset=0) {
     offset(r=corner_r-inset)
         translate(case_min+[corner_r,corner_r])
@@ -187,10 +192,14 @@ module wall_label(position,angle,length,count,stars) {
 module perimeter_labels() {
     x0=case_min.x; x1=x0+case_size.x; y0=case_min.y; y1=y0+case_size.y;
     // Six MAGIC words and five four-point stars, distributed over all walls.
-    wall_label([x0+corner_r,y0],0,case_size.x-2*corner_r,2,2);
-    wall_label([x1,y0+corner_r],90,case_size.y-2*corner_r,1,1);
-    wall_label([x1-corner_r,y1],180,case_size.x-2*corner_r,2,2);
-    wall_label([x0,y1-corner_r],270,case_size.y-2*corner_r,1,0);
+    // Glyphs are constructed in Cartesian coordinates. Apply the inverse
+    // conversion here so the output transform does not mirror the lettering.
+    pcb_to_world() {
+        wall_label([x0+corner_r,y0],0,case_size.x-2*corner_r,2,2);
+        wall_label([x1,y0+corner_r],90,case_size.y-2*corner_r,1,1);
+        wall_label([x1-corner_r,y1],180,case_size.x-2*corner_r,2,2);
+        wall_label([x0,y1-corner_r],270,case_size.y-2*corner_r,1,0);
+    }
 }
 module base() {
     difference() {
@@ -305,6 +314,7 @@ module display(lift=0) {
 }
 module printed_lid() { translate([0,pcb_d,case_top]) rotate([180,0,0]) lid(); }
 
+pcb_to_world() {
 if(part=="base") base();
 else if(part=="lid") printed_lid();
 else if(part=="assembly") display();
@@ -312,7 +322,7 @@ else if(part=="exploded") display(explode);
 else if(part=="section") intersection() { display(); box([-20,-10,-1],[70,pcb_d/2,30]); }
 else if(part=="layout") {
     color(white) base();
-    color(white) translate([0,case_size.y+6,0]) printed_lid();
+    color(white) translate([0,-case_size.y-6,0]) printed_lid();
 }
 else if(part=="led_membrane_probe") intersection() {
     lid();
@@ -331,6 +341,7 @@ else if(part=="collision_lid_path") for(dz=[0.2,0.5,1,2,4,8,15,25])
 else if(part=="collision_module_path") for(dz=[0,0.2,0.5,1,2,4,8,15,25])
     intersection() { case_assembly(); translate([0,0,dz]) module_reference(); }
 else assert(false,"Unknown output part");
+}
 
 echo(case_mm=[case_size.x,case_size.y,case_top],pcb_lower_z=pcb_z,
      module_lower_z=module_z,insert_top_z=insert_top,screw_tip_z=screw_tip,

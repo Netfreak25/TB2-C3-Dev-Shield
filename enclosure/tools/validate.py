@@ -16,6 +16,52 @@ WORK = ROOT / ".build"
 PARTS = ("base", "lid")
 COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path", "module_path")
 ZERO_VOLUME_MM3 = 0.0001
+GEOMETRY_TOLERANCE_MM = 0.00001
+
+
+def vertical_surfaces(path, x, y):
+    """Find mesh surfaces along a vertical ray, without relying on CAD datums."""
+    data = path.read_bytes()
+    hits = []
+    for index in range(struct.unpack_from("<I", data, 80)[0]):
+        values = struct.unpack_from("<12fH", data, 84 + 50 * index)
+        a, b, c = [values[start:start + 3] for start in (3, 6, 9)]
+        determinant = (b[1]-c[1])*(a[0]-c[0]) + (c[0]-b[0])*(a[1]-c[1])
+        if abs(determinant) < 1e-10:
+            continue
+        u = ((b[1]-c[1])*(x-c[0]) + (c[0]-b[0])*(y-c[1])) / determinant
+        v = ((c[1]-a[1])*(x-c[0]) + (a[0]-c[0])*(y-c[1])) / determinant
+        if min(u, v, 1-u-v) >= -1e-8:
+            hits.append(round(u*a[2] + v*b[2] + (1-u-v)*c[2], 5))
+    return sorted(set(hits))
+
+
+def check_pcb_orientation(lid_path, design_path):
+    """Check actual exported geometry against the independent PCB layout file.
+
+    PCB image Y points down. World Y points up; printing the lid outside-down
+    reverses Y again. Thus the delivered lid STL must use the PCB's original
+    X/Y values for its apertures and LED skin. This detects a mirrored case
+    even if its internal hardware model has the same orientation error.
+    """
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    pads = design["pads"]
+    led = [p for p in pads if p["ref"] == "D1"]
+    x = sum(p["x"] for p in led)/len(led)
+    y = sum(p["y"] for p in led)/len(led)
+    skin = vertical_surfaces(lid_path, x, y)
+    wrong_side = vertical_surfaces(lid_path, x, design["board_mm"][1]-y)
+    if len(skin) != 2 or abs(skin[0]) > GEOMETRY_TOLERANCE_MM or abs(skin[1]-0.2) > GEOMETRY_TOLERANCE_MM:
+        raise RuntimeError(f"LED cover is not at the PCB's D1 location: surfaces {skin}")
+    if len(wrong_side) != 2 or wrong_side[1]-wrong_side[0] <= 0.2 + GEOMETRY_TOLERANCE_MM:
+        raise RuntimeError(f"Unexpected LED pocket at the reflected D1 location: {wrong_side}")
+    for pad in pads:
+        if (pad["ref"] in ("J1", "JP1", "JL", "JR") and not pad["pin"].endswith("D")
+                and vertical_surfaces(lid_path, pad["x"], pad["y"])):
+            raise RuntimeError(f"Lid obstructs PCB pad {pad['ref']}/{pad['pin']}")
+    return {"pcb_source": "hardware/design.json", "d1_print_xy_mm": [x, y],
+            "skin_surfaces_mm": skin, "reflected_position_surfaces_mm": wrong_side,
+            "connector_and_socket_pads_clear": True}
 
 
 def executable(variable, name, windows_path):
@@ -100,21 +146,24 @@ def main():
     scad = executable("OPENSCAD", "openscad", "OpenSCAD/openscad.com")
     WORK.mkdir(exist_ok=True)
     if args.preview_only:
-        for name in ("assembly", "exploded", "section", "layout"):
+        for name in ("assembly", "exploded", "section", "layout", "top"):
             center_z = 32 if name == "exploded" else 11
             target_y = 31 if name == "layout" else 11.26
             camera = ("70,90,55,19.5,8,9" if name == "section" else
                       f"100,-115,110,19.5,{target_y},{center_z}")
+            if name == "top":
+                camera = "19.5,11.26,0,0,0,0,150"
+            selector = "assembly" if name == "top" else name
             command = [scad, "--preview", "--imgsize=1500,1100",
                        "--projection=o", "--colorscheme=Tomorrow", f"--camera={camera}",
-                       "-D", f'part="{name}"', "-o", str(ROOT / (name + ".png")), str(SOURCE)]
-            if name != "section":
+                       "-D", f'part="{selector}"', "-o", str(ROOT / (name + ".png")), str(SOURCE)]
+            if name not in ("section", "top"):
                 command.append("--viewall")
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False)
             (WORK / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
             if proc.returncode or not (ROOT / (name + ".png")).is_file():
                 raise RuntimeError(f"Preview failed: {name}")
-        print("Four previews rendered; inspect them before delivery.")
+        print("Five previews rendered; inspect them before delivery.")
         return
     slicer = executable("PRUSASLICER", "prusa-slicer", "Prusa3D/PrusaSlicer/prusa-slicer-console.exe")
     report = {"status": "unverified build candidate", "physical_fit_tested": False,
@@ -136,6 +185,9 @@ def main():
         info["slicer_manifold"] = True
         report["parts"][part] = info
         print(f"{part}: one closed mesh, {info['volume_mm3']} mm3", flush=True)
+    report["pcb_orientation"] = check_pcb_orientation(
+        ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
+    print("PCB orientation: D1, connector and socket positions match the released layout", flush=True)
     for name in COLLISIONS:
         info = export(scad, "collision_" + name, WORK / ("collision_" + name + ".stl"))
         volume = info["volume_mm3"] if info else 0

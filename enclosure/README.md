@@ -2,9 +2,17 @@
 
 A compact, two-piece dock for the **socket-mounted TB2 C3 Dev Shield Rev. 0.1**. The white rounded base protects the shield underside; the white flat lid retains its edges. The ESP32 remains exposed, leaving USB-C, BOOT and RESET accessible. The shrouded cable connector and power jumper are accessible from above, with ACT hidden behind a continuous, single-layer white skin. Six **MAGIC** words and five four-point stars decorate all four sidewalls, using the geometric lettering of the original enclosure.
 
-**Enclosure Rev. 0.2 — unverified build candidate.** The meshes and nominal component clearances have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
+**Enclosure Rev. 0.3 — unverified build candidate.** The meshes and nominal component clearances have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
 
 ![Assembled flat dock](assembly.png)
+
+**Rev. 0.3 corrects the PCB-to-CAD orientation. Replace earlier enclosure exports before printing; their layout was reflected relative to the PCB.**
+
+## Orientation
+
+Viewed from above with USB-C at the top: the ESP32 is on the left, POWER is at the upper right, J1 is below POWER, and ACT is at the lower right under the white skin. This matches the PCB top view.
+
+![Top view with USB-C at the top](top.png)
 
 ## Files
 
@@ -14,7 +22,7 @@ A compact, two-piece dock for the **socket-mounted TB2 C3 Dev Shield Rev. 0.1**.
 | [TB2_C3_Case_base.stl](TB2_C3_Case_base.stl) | Base, already oriented with its floor on the print bed |
 | [TB2_C3_Case_lid.stl](TB2_C3_Case_lid.stl) | Lid, already oriented with its outside face on the print bed |
 | [Exploded view](exploded.png) | Parts and assembly arrangement |
-| [Section](section.png) / [print layout](layout.png) | Internal clearances and print orientation |
+| [Top view](top.png) / [section](section.png) / [print layout](layout.png) | Internal clearances and print orientation |
 | [Validation results](validation.json) | Mesh hashes and nominal collision results |
 
 ## Size and hardware
@@ -71,9 +79,14 @@ With Python 3, OpenSCAD and PrusaSlicer installed, run from the repository root:
 ```sh
 python enclosure/tools/validate.py
 python enclosure/tools/validate.py --preview-only
+python -m unittest discover -s enclosure/tools -p "test_*.py"
 ```
 
 If needed, set `OPENSCAD` and `PRUSASLICER` to their executable paths. The checker exports both STLs, checks closed edges and connected components, and asks PrusaSlicer to check each mesh. It also checks nominal solid intersections for the enclosure, hardware, fasteners, USB and cable envelopes, plus sampled vertical lid and module insertion paths. A separate solid probe verifies that the ACT cover is present and exactly 0.2 mm thick. The lid is checked with the ESP32 removed, as in the assembly sequence.
+
+A separate orientation check reads the released `hardware/design.json` and probes the actual delivered lid STL at D1 and all socket/connector pads. Its regression test deliberately reflects the mesh and requires rejection. This check is independent of the simplified hardware reference used for collision checks.
+
+PCB layout coordinates have Y increasing down the drawing. The CAD output converts them to Cartesian Y increasing upwards. The engraving is kept readable during that conversion; the lid then receives its separate outside-down print rotation.
 
 Shared, zero-thickness seating planes are reported separately from solid interference. Both printable meshes must be manifold and contain exactly one connected part. Check logs are kept in the ignored `.build/` directory.
 

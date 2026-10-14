@@ -1,35 +1,13 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "98fd523a7ec880befc9acac7157f99cbb4838e45da12003342bae53e864a355a",
+  "source_sha256": "a1b6e6a9b54ec940aa21464da1abc43e924a911461765ed13d5d88bc987c2513",
   "parts": {
     "base": {
       "triangles": 4176,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 5610.24681,
-      "bounds_mm": [
-        [
-          -7.0,
-          46.0
-        ],
-        [
-          -4.0,
-          26.51999
-        ],
-        [
-          0.0,
-          11.2
-        ]
-      ],
-      "sha256": "9f1b5a512b833ef24a7e1ef1323a7f08f6bdfee2853cacf7ccb00bc92d4ff078",
-      "slicer_manifold": true
-    },
-    "lid": {
-      "triangles": 1616,
-      "connected_parts": 1,
-      "closed_edges": true,
-      "volume_mm3": 1885.754995,
+      "volume_mm3": 5610.246887,
       "bounds_mm": [
         [
           -7.0,
@@ -41,10 +19,32 @@
         ],
         [
           0.0,
+          11.2
+        ]
+      ],
+      "sha256": "0a6f45587ec18ae10ba7573b0d4c7146b6e989e29ac5bfcd6fd0350f3628e09a",
+      "slicer_manifold": true
+    },
+    "lid": {
+      "triangles": 1616,
+      "connected_parts": 1,
+      "closed_edges": true,
+      "volume_mm3": 1885.755007,
+      "bounds_mm": [
+        [
+          -7.0,
+          46.0
+        ],
+        [
+          -4.0,
+          26.51999
+        ],
+        [
+          0.0,
           6.4
         ]
       ],
-      "sha256": "11916feecac70f895360cf27433951acfb22ab5c6f516452b69f9028278a5594",
+      "sha256": "792a208726497e4b50566708c6dbc10207897e8e3103b6fb240e29630ae248f3",
       "slicer_manifold": true
     }
   },
@@ -77,6 +77,22 @@
       "volume_mm3": 0,
       "planar_contact_only": false
     }
+  },
+  "pcb_orientation": {
+    "pcb_source": "hardware/design.json",
+    "d1_print_xy_mm": [
+      36.0,
+      20.75
+    ],
+    "skin_surfaces_mm": [
+      0.0,
+      0.2
+    ],
+    "reflected_position_surfaces_mm": [
+      0.0,
+      1.6
+    ],
+    "connector_and_socket_pads_clear": true
   },
   "led_membrane": {
     "thickness_mm": 0.2,
