@@ -3,4 +3,5 @@
 *.zip binary
 *.pdf binary
 *.png binary
+*.stl binary
 manufacturing/pcbway/* -text

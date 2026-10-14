@@ -47,6 +47,12 @@ The [complete BOM](manufacturing/pcbway/BOM.csv) contains **7 THT components in 
 
 For factory assembly, JP1 includes **the two pins only**: no removable shunt is supplied or fitted. Add your own 2.54 mm shunt to enable target power after inspection. The ESP32 SuperMini, its male headers and the SOP8 clip cable are not included in the BOM.
 
+## Printable flat dock
+
+The optional [two-piece flat dock](enclosure/README.md) protects the shield underside while leaving the ESP32, USB-C, buttons, cable connector and power jumper accessible. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
+
+![TB2 C3 flat dock](enclosure/assembly.png)
+
 ## Firmware and browser connection
 
 Use ESP32-C3 **serprog firmware with SPI2** configured as /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7, with Wi-Fi disabled. A compatible browser application connects through **WebSerial** to the ESP32-C3's native serial USB port. The shield itself is passive and needs no firmware.
