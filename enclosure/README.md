@@ -2,11 +2,13 @@
 
 A compact, two-piece dock for the **socket-mounted TB2 C3 Dev Shield Rev. 0.1**. The white rounded base protects the shield underside; the white flat lid retains its edges. The ESP32 remains exposed, leaving USB-C, BOOT and RESET accessible. The shrouded cable connector and power jumper are accessible from above, with ACT hidden behind a continuous, single-layer white skin. Six **MAGIC** words and five four-point stars decorate all four sidewalls, using the geometric lettering of the original enclosure.
 
-**Enclosure Rev. 0.3 — unverified build candidate.** The meshes and nominal component clearances have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
+**Enclosure Rev. 0.4 — unverified build candidate.** The meshes and component envelopes have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
 
 ![Assembled flat dock](assembly.png)
 
 **Rev. 0.3 corrects the PCB-to-CAD orientation. Replace earlier enclosure exports before printing; their layout was reflected relative to the PCB.**
+
+Rev. 0.4 adds an integral tube around ACT beneath its 0.2-mm white cover. Use the Rev. 0.4 base and lid together: the PCB locating clearance is reduced to keep the tube aligned with the LED and clear of the connector.
 
 ## Orientation
 
@@ -23,6 +25,7 @@ Viewed from above with USB-C at the top: the ESP32 is on the left, POWER is at t
 | [TB2_C3_Case_lid.stl](TB2_C3_Case_lid.stl) | Lid, already oriented with its outside face on the print bed |
 | [Exploded view](exploded.png) | Parts and assembly arrangement |
 | [Top view](top.png) / [section](section.png) / [print layout](layout.png) | Internal clearances and print orientation |
+| [LED cutaway](led_section.png) | Tube, LED and single-layer cover in section |
 | [Validation results](validation.json) | Mesh hashes and nominal collision results |
 
 ## Size and hardware
@@ -33,9 +36,10 @@ Viewed from above with USB-C at the top: the ESP32 is on the left, POWER is at t
 | Assembly height including the ESP32 USB shell | About **22 mm**, dependent on the module and headers |
 | Shield PCB | 39 × 22.52 × 1.6 mm |
 | Floor / walls / lid | 1.6 / 1.8 / 1.6 mm |
-| White skin over ACT | **0.2 mm**, one layer with a 0.2 mm first-layer height; nominal 0.9 mm clearance above the LED |
+| White skin over ACT | **0.2 mm**, one layer with a 0.2 mm first-layer height; nominal 1.0 mm clearance above the seated LED |
+| ACT tube | 3.8 mm entry bore, tapered to 3.2 mm beneath the skin; projects 2.2 mm below the lid roof |
 | PCB underside above the inside floor | 3 mm; trim soldered leads to no more than 2 mm below the PCB |
-| PCB lateral clearance / vertical retention gap | 0.3 mm per side / 0.2 mm nominal |
+| PCB lateral clearance / vertical retention gap | 0.15 mm per side / 0.2 mm nominal |
 | ESP32 socket body / male header spacer | 8.5 / 2.5 mm nominal |
 | Fasteners | **2 × M2×8 cylinder-head screws**, nominal head Ø3.8 × 2 mm |
 | Inserts | **2 × M2 heat-set inserts, 3 mm long, nominal Ø3.2 mm outside** |
@@ -45,13 +49,21 @@ The screws sit outside the PCB. Four small edge supports and matching lid retain
 
 The dock is designed for the socket-mounted module. **Direct-solder mounting has not been fitted to this enclosure.** Different socket heights, male header spacers, LEDs, cable plugs or insert profiles can require parameter changes. A nominal insert diameter does not guarantee the same heat-fit behaviour across brands or printers.
 
+## ACT light channel
+
+The lid includes a closed tube around the upper LED body, ending at the continuous white skin. Its outside is 5.6 mm across and flattened toward J1 to fit the narrow gap. The wall is 0.9 mm around most of the entry bore and **0.4 mm at its narrowest point beside J1**. There is no separate light pipe or insert to assemble.
+
+![Section through ACT: white tube and cover, red LED, black connector and green PCB](led_section.png)
+
+The LED reference uses the Kingbright mounting envelope of 5.4 ± 0.5 mm above the PCB, with the LED fully seated. The tolerance check includes the LED and header size envelopes, ±0.15 mm PCB movement in X/Y and 0.2 mm upward movement. The modeled minimum gap to J1 is only **0.05 mm** at the combined envelope limit. Print variation and solder-placement errors are not included: this tight fit still needs a physical check. Do not force the lid or enlarge the PCB locating clearance without checking the tube again.
+
 ## Print
 
 Print one base and one lid. The supplied STLs are separate parts in their intended print orientation; do not rotate the lid upright for printing.
 
 - White PLA, 0.4 mm nozzle, **0.2 mm first layer and subsequent layers**. The first layer of the inverted lid forms the LED skin. Suggested starting settings: four perimeters, five top/bottom layers and 20% infill.
 - Both base and lid are white. The recessed `MAGIC` lettering and stars can be left white or paint-filled with the original orange accent colour. These are single-material STL parts; no separate colour inlay is required.
-- Supports are not expected for the intended orientation. Inspect your slicer's preview, especially the small insert entry chamfers; this package has not been sliced or test-printed.
+- Supports are not expected for the intended orientation. Inspect your slicer's preview, especially the 0.4-mm tube wall beside J1 and the small insert entry chamfers; this package has not been sliced or test-printed.
 - Use a brim only if needed for adhesion. No printer-specific G-code is included.
 
 ![Base and inverted lid in print orientation](layout.png)
@@ -62,7 +74,7 @@ Print one base and one lid. The supplied STLs are separate parts in their intend
 2. Install the two heat-set inserts in the **empty base**, before adding electronics. Set their top faces 0.2 mm below the boss surfaces. Let the base cool and check screw engagement.
 3. Inspect the shield solder joints. Trim projecting leads to at most 2 mm below the PCB and remove loose clippings.
 4. Place the shield on the four edge supports. Orient the shield using its own USB arrow: the module sockets are on the left and the cable connector on the right when looking down with USB at the top. The repeated `MAGIC` decoration is not an orientation mark.
-5. Lower the lid vertically. Its large opening surrounds the module sockets; its narrow opening surrounds the cable connector and jumper. The round blind pocket on the lid underside aligns with ACT. Its outer skin is closed; do not drill or puncture it. Do not force it onto a misplaced component.
+5. Lower the lid vertically. Its large opening surrounds the module sockets; its narrow opening surrounds the cable connector and jumper. The tube on the lid underside surrounds ACT; check that it clears the LED and J1. Its outer skin is closed; do not drill or puncture it. Do not force it onto a misplaced component.
 6. Fit the two M2×8 screws and tighten gently until the lid seats. Its retainers should leave the designed small PCB clearance rather than bow the board.
 7. Insert the ESP32 from above, observing the shield's USB arrow. Add your own jumper shunt and cable only after the normal electrical checks in the [hardware guide](../docs/hardware.md#first-use-checks).
 
@@ -72,7 +84,7 @@ Check USB plug clearance, access to both ESP32 buttons, cable insertion/removal 
 
 ## Modify and validate
 
-Open `TB2_C3_Case.scad` in OpenSCAD. Select `assembly`, `exploded`, `section`, `layout`, `base` or `lid` with the `part` parameter. The `base` and `lid` outputs export only the selected printable part. Fit, socket-stack and fastener parameters are grouped near the top of the source.
+Open `TB2_C3_Case.scad` in OpenSCAD. Select `assembly`, `exploded`, `section`, `led_section`, `layout`, `base` or `lid` with the `part` parameter. The `base` and `lid` outputs export only the selected printable part. Fit, light-channel, socket-stack and fastener parameters are grouped near the top of the source.
 
 With Python 3, OpenSCAD and PrusaSlicer installed, run from the repository root:
 
@@ -86,13 +98,15 @@ If needed, set `OPENSCAD` and `PRUSASLICER` to their executable paths. The check
 
 A separate orientation check reads the released `hardware/design.json` and probes the actual delivered lid STL at D1 and all socket/connector pads. Its regression test deliberately reflects the mesh and requires rejection. This check is independent of the simplified hardware reference used for collision checks.
 
+The tube check probes the delivered STL at 72 positions around D1, requiring a continuous wall that extends below the roof. Its negative test rejects a flat roof without the tube. A separate solid-intersection check covers the LED, J1 and R2 envelopes at the extremes of the modeled PCB movement.
+
 PCB layout coordinates have Y increasing down the drawing. The CAD output converts them to Cartesian Y increasing upwards. The engraving is kept readable during that conversion; the lid then receives its separate outside-down print rotation.
 
 Shared, zero-thickness seating planes are reported separately from solid interference. Both printable meshes must be manifold and contain exactly one connected part. Check logs are kept in the ignored `.build/` directory.
 
-The LED pocket leaves a continuous white outer surface with no separate circular insert. Light transmission and visibility through the white PLA depend on pigment, extrusion and the actual LED; they remain untested.
+The LED tube leaves a continuous white outer surface with no separate circular insert. Light transmission and visibility through the white PLA depend on pigment, extrusion and the actual LED; they remain untested.
 
-The source uses the shield's [released layout dimensions](../hardware/design.json). Component references are the [Würth 61300811821 sockets](https://www.we-online.com/components/products/datasheet/61300811821.pdf), [Würth 61200821621 shrouded header](https://www.we-online.com/components/products/datasheet/61200821621.pdf) and [ESP32-C3 SuperMini module](https://github.com/NologoTech/ESP32C3-Supermini). The male spacer, module thickness, solder tails, LED height and mating cable envelopes are nominal assumptions; measure the actual parts before relying on the fit.
+The source uses the shield's [released layout dimensions](../hardware/design.json). Component references are the [Würth 61300811821 sockets](https://www.we-online.com/components/products/datasheet/61300811821.pdf), [Würth 61200821621 shrouded header](https://www.we-online.com/components/products/datasheet/61200821621.pdf), [Kingbright WP710A10LID LED](https://www.kingbrightusa.com/images/catalog/SPEC/WP710A10LID.pdf) and [ESP32-C3 SuperMini module](https://github.com/NologoTech/ESP32C3-Supermini). The male spacer, module thickness, solder tails and mating cable envelopes are nominal assumptions; measure the actual parts before relying on the fit.
 
 ### Still to verify physically
 

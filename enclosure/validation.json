@@ -1,13 +1,13 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "a1b6e6a9b54ec940aa21464da1abc43e924a911461765ed13d5d88bc987c2513",
+  "source_sha256": "127d34134b1a55c9c23d2b849aa9a259cb37dab839100d1eefc062bbedcc75bf",
   "parts": {
     "base": {
       "triangles": 4176,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 5610.246887,
+      "volume_mm3": 5612.286887,
       "bounds_mm": [
         [
           -7.0,
@@ -22,14 +22,14 @@
           11.2
         ]
       ],
-      "sha256": "0a6f45587ec18ae10ba7573b0d4c7146b6e989e29ac5bfcd6fd0350f3628e09a",
+      "sha256": "e95b5a42c5afed416a6b699301ebbb83dff8284da3be881180eff3dec2abc1ea",
       "slicer_manifold": true
     },
     "lid": {
-      "triangles": 1616,
+      "triangles": 2112,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 1885.755007,
+      "volume_mm3": 1934.14875,
       "bounds_mm": [
         [
           -7.0,
@@ -44,7 +44,7 @@
           6.4
         ]
       ],
-      "sha256": "792a208726497e4b50566708c6dbc10207897e8e3103b6fb240e29630ae248f3",
+      "sha256": "30902cfc5bc72c5ea65a839be1689a048b17d8f06fb00845dc2463d1a42c5b41",
       "slicer_manifold": true
     }
   },
@@ -76,6 +76,10 @@
     "module_path": {
       "volume_mm3": 0,
       "planar_contact_only": false
+    },
+    "light_guide_tolerance": {
+      "volume_mm3": 0,
+      "planar_contact_only": false
     }
   },
   "pcb_orientation": {
@@ -93,6 +97,12 @@
       1.6
     ],
     "connector_and_socket_pads_clear": true
+  },
+  "light_channel": {
+    "ring_samples": 72,
+    "sample_radius_mm": 2.2,
+    "wall_depth_from_outer_face_mm": 3.8,
+    "projection_below_roof_mm": 2.2
   },
   "led_membrane": {
     "thickness_mm": 0.2,

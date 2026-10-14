@@ -4,6 +4,7 @@ import argparse
 import collections
 import hashlib
 import json
+import math
 import os
 import shutil
 import struct
@@ -14,9 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "TB2_C3_Case.scad"
 WORK = ROOT / ".build"
 PARTS = ("base", "lid")
-COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path", "module_path")
+COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path", "module_path",
+              "light_guide_tolerance")
 ZERO_VOLUME_MM3 = 0.0001
 GEOMETRY_TOLERANCE_MM = 0.00001
+LIGHT_RING_RADIUS_MM = 2.2
+LIGHT_RING_SAMPLES = 72
+LIGHT_TUBE_PRINT_HEIGHT_MM = 3.8
 
 
 def vertical_surfaces(path, x, y):
@@ -62,6 +67,28 @@ def check_pcb_orientation(lid_path, design_path):
     return {"pcb_source": "hardware/design.json", "d1_print_xy_mm": [x, y],
             "skin_surfaces_mm": skin, "reflected_position_surfaces_mm": wrong_side,
             "connector_and_socket_pads_clear": True}
+
+
+def check_light_channel(lid_path, design_path):
+    """Require a continuous deep ring around the PCB's LED in the printed STL.
+
+    A blind pocket in a flat roof cannot satisfy this check: every sampled
+    ray must cross a wall that projects 2.2 mm below the 1.6-mm roof.
+    """
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    pads = [p for p in design["pads"] if p["ref"] == "D1"]
+    center = [sum(p[axis] for p in pads)/len(pads) for axis in ("x", "y")]
+    for index in range(LIGHT_RING_SAMPLES):
+        angle = math.tau * (index + 0.5)/LIGHT_RING_SAMPLES
+        x = center[0] + LIGHT_RING_RADIUS_MM * math.cos(angle)
+        y = center[1] + LIGHT_RING_RADIUS_MM * math.sin(angle)
+        surfaces = vertical_surfaces(lid_path, x, y)
+        if (len(surfaces) != 2 or abs(surfaces[0]) > GEOMETRY_TOLERANCE_MM
+                or surfaces[1] < LIGHT_TUBE_PRINT_HEIGHT_MM - GEOMETRY_TOLERANCE_MM):
+            raise RuntimeError(f"Missing continuous LED tube at angle {math.degrees(angle):.1f}: {surfaces}")
+    return {"ring_samples": LIGHT_RING_SAMPLES, "sample_radius_mm": LIGHT_RING_RADIUS_MM,
+            "wall_depth_from_outer_face_mm": LIGHT_TUBE_PRINT_HEIGHT_MM,
+            "projection_below_roof_mm": 2.2}
 
 
 def executable(variable, name, windows_path):
@@ -146,24 +173,26 @@ def main():
     scad = executable("OPENSCAD", "openscad", "OpenSCAD/openscad.com")
     WORK.mkdir(exist_ok=True)
     if args.preview_only:
-        for name in ("assembly", "exploded", "section", "layout", "top"):
+        for name in ("assembly", "exploded", "section", "layout", "top", "led_section"):
             center_z = 32 if name == "exploded" else 11
             target_y = 31 if name == "layout" else 11.26
             camera = ("70,90,55,19.5,8,9" if name == "section" else
                       f"100,-115,110,19.5,{target_y},{center_z}")
             if name == "top":
                 camera = "19.5,11.26,0,0,0,0,150"
+            elif name == "led_section":
+                camera = "45,-20,22,36,3,9.5"
             selector = "assembly" if name == "top" else name
             command = [scad, "--preview", "--imgsize=1500,1100",
                        "--projection=o", "--colorscheme=Tomorrow", f"--camera={camera}",
                        "-D", f'part="{selector}"', "-o", str(ROOT / (name + ".png")), str(SOURCE)]
-            if name not in ("section", "top"):
+            if name not in ("section", "top", "led_section"):
                 command.append("--viewall")
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False)
             (WORK / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
             if proc.returncode or not (ROOT / (name + ".png")).is_file():
                 raise RuntimeError(f"Preview failed: {name}")
-        print("Five previews rendered; inspect them before delivery.")
+        print("Six previews rendered; inspect them before delivery.")
         return
     slicer = executable("PRUSASLICER", "prusa-slicer", "Prusa3D/PrusaSlicer/prusa-slicer-console.exe")
     report = {"status": "unverified build candidate", "physical_fit_tested": False,
@@ -188,6 +217,9 @@ def main():
     report["pcb_orientation"] = check_pcb_orientation(
         ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
     print("PCB orientation: D1, connector and socket positions match the released layout", flush=True)
+    report["light_channel"] = check_light_channel(
+        ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
+    print("LED tube: continuous wall extends 2.2 mm below the lid roof", flush=True)
     for name in COLLISIONS:
         info = export(scad, "collision_" + name, WORK / ("collision_" + name + ".stl"))
         volume = info["volume_mm3"] if info else 0
