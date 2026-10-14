@@ -1,13 +1,13 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "287156eefccc1dbd0fc1079155bba5eb57c8e9b8ef772c92ccbe2b34b23afa58",
+  "source_sha256": "98fd523a7ec880befc9acac7157f99cbb4838e45da12003342bae53e864a355a",
   "parts": {
     "base": {
-      "triangles": 4324,
+      "triangles": 4176,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 5771.488084,
+      "volume_mm3": 5610.24681,
       "bounds_mm": [
         [
           -7.0,
@@ -22,14 +22,14 @@
           11.2
         ]
       ],
-      "sha256": "3a503de51027baa2f0d47451f94fb076523cd13565d730d30c3fa2f805e20fcf",
+      "sha256": "9f1b5a512b833ef24a7e1ef1323a7f08f6bdfee2853cacf7ccb00bc92d4ff078",
       "slicer_manifold": true
     },
     "lid": {
       "triangles": 1616,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 1883.078537,
+      "volume_mm3": 1885.754995,
       "bounds_mm": [
         [
           -7.0,
@@ -44,7 +44,7 @@
           6.4
         ]
       ],
-      "sha256": "f72d5100494938fdfd932784f93ef01749d8e9fb54630c359c585d9bda3fad72",
+      "sha256": "11916feecac70f895360cf27433951acfb22ab5c6f516452b69f9028278a5594",
       "slicer_manifold": true
     }
   },
@@ -77,5 +77,9 @@
       "volume_mm3": 0,
       "planar_contact_only": false
     }
+  },
+  "led_membrane": {
+    "thickness_mm": 0.2,
+    "closed": true
   }
 }

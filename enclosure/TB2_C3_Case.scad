@@ -1,11 +1,11 @@
-/* TB2 C3 Dev Shield flat dock, Rev. 0.1. Units: mm.
+/* TB2 C3 Dev Shield flat dock, Rev. 0.2. Units: mm.
  * Two printable parts. USB edge y=0; PCB lower face pcb_z.
  * Hardware envelopes and physical fit remain unverified.
  * SPDX-License-Identifier: CERN-OHL-P-2.0
  */
 
 /* [Output] */
-part = "assembly"; // [assembly,exploded,section,base,lid,layout,collision_case,collision_hardware,collision_fasteners,collision_usb,collision_cable,collision_lid_path,collision_module_path]
+part = "assembly"; // [assembly,exploded,section,base,lid,layout,led_membrane_probe,collision_case,collision_hardware,collision_fasteners,collision_usb,collision_cable,collision_lid_path,collision_module_path]
 show_hardware = true;
 show_labels = true;
 explode = 14;
@@ -18,6 +18,17 @@ fit = 0.25;
 pcb_xy_clearance = 0.3;
 pcb_hold_gap = 0.2;
 solder_clearance = 3.0;
+print_layer_h = 0.2;
+
+/* [MAGIC lettering] */
+mark_depth = 0.6;
+letter_h = 4.4;
+letter_w = 3.2;
+stroke_w = 0.9;
+letter_gap = 0.6;
+star_w = 2.8;
+star_h = 3.2;
+star_tip = 0.8;
 
 /* [ESP32 stack - measure your module] */
 socket_h = 8.5;
@@ -77,8 +88,9 @@ service_open_min = [23.5,-0.2];
 service_open_max = [34.2,22.9];
 led_center = [36,20.75];
 led_aperture_d = 4.2;
+led_membrane_t = print_layer_h;
+word_w = 4*letter_w+stroke_w+4*letter_gap;
 white = [0.94,0.95,0.94];
-blue = [0.04,0.24,0.78];
 
 assert(tip_floor>floor_t, "Screw tip relief would breach the floor");
 assert(insert_bottom>screw_tip, "Screws must reach the full insert thread");
@@ -86,6 +98,9 @@ assert(boss_top>pcb_top && boss_top<seam_z, "Invalid boss / lid bearing heights"
 assert(module_z>case_top, "This dock requires socket-mounted ESP32 hardware");
 assert(service_open_min.x-module_open_max.x>=2*skirt_t, "Aperture bridge too narrow");
 assert(pcb_bearing<0.54, "Left support would overlap an outer ESP32 pad");
+assert(led_membrane_t>0 && led_membrane_t<roof_t, "Invalid single-layer LED skin");
+assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
+       "Lettering must leave a wall backing and stay below the lid seam");
 
 module box(a,b) { translate(a) cube(b-a); }
 module outline(inset=0) {
@@ -102,7 +117,9 @@ module aperture(a,b) { box([a.x,a.y,0],[b.x,b.y,case_top+eps]); }
 module openings() {
     aperture(module_open_min,module_open_max);
     aperture(service_open_min,service_open_max);
-    translate([led_center.x,led_center.y,0]) cylinder(d=led_aperture_d,h=case_top+eps);
+    // Blind pocket from underneath: the outer face stays completely closed.
+    translate([led_center.x,led_center.y,0])
+        cylinder(d=led_aperture_d,h=case_top-led_membrane_t);
 }
 module perimeter_shell(z0,z1) {
     difference() { slab(z0,z1); slab(z0-eps,z1+eps,wall); }
@@ -126,10 +143,54 @@ module insert_bores() {
             cylinder(d1=insert_bore_d,d2=insert_bore_d+0.6,h=0.35+eps);
     }
 }
-module front_label(depth=0.4) {
-    translate([19.5,case_min.y+depth,6.2]) rotate([90,0,0])
-        linear_extrude(depth+eps) text("TB2 C3",size=3.5,
-            font="Liberation Sans:style=Bold",halign="center",valign="center");
+module letter_line(points) {
+    for(i=[0:len(points)-2]) hull() {
+        translate(points[i]) square(stroke_w,center=true);
+        translate(points[i+1]) square(stroke_w,center=true);
+    }
+}
+module magic_word() {
+    // Geometric lettering from the original MAGIC enclosure; no system font.
+    w=letter_w; h=letter_h; r=stroke_w/2; c=0.8;
+    letter_line([[r,r],[r,h-r],[w/2,h*0.53],[w-r,h-r],[w-r,r]]);
+    translate([w+letter_gap,0]) difference() {
+        polygon([[0,0],[0,h-c],[c,h],[w-c,h],[w,h-c],[w,0]]);
+        translate([stroke_w,-eps]) square([w-2*stroke_w,0.96]);
+        translate([stroke_w,0.95+stroke_w]) square([w-2*stroke_w,h-0.95-2*stroke_w]);
+    }
+    translate([2*(w+letter_gap),0])
+        letter_line([[w-r,h-c],[w-c,h-r],[c,h-r],[r,h-c],[r,c],
+                     [c,r],[w-c,r],[w-r,c],[w-r,h*0.4],[w*0.65,h*0.4]]);
+    translate([3*(w+letter_gap),0]) square([stroke_w,h]);
+    translate([3*(w+letter_gap)+stroke_w+letter_gap,0])
+        letter_line([[w-r,h-c],[w-c,h-r],[c,h-r],[r,h-c],[r,c],
+                     [c,r],[w-c,r],[w-r,c]]);
+}
+module magic_star() {
+    w=star_w/2; h=star_h/2; t=star_tip/2; k=0.55;
+    polygon([[-t,h],[t,h],[k,k],[w,t],[w,-t],[k,-k],
+             [t,-h],[-t,-h],[-k,-k],[-w,-t],[-w,t],[-k,k]]);
+}
+module magic_band(length,count,stars) {
+    gap=(length-count*word_w-stars*star_w)/(count+stars+1);
+    assert(gap>=1.2,"MAGIC lettering has insufficient spacing");
+    for(i=[0:count-1]) translate([gap+i*(word_w+star_w+2*gap),0]) {
+        magic_word();
+        if(i<stars) translate([word_w+gap+star_w/2,letter_h/2]) magic_star();
+    }
+}
+module wall_label(position,angle,length,count,stars) {
+    translate([position.x,position.y,(case_top-letter_h)/2])
+        rotate([0,0,angle]) rotate([90,0,0]) translate([0,0,-mark_depth])
+            linear_extrude(mark_depth+eps) magic_band(length,count,stars);
+}
+module perimeter_labels() {
+    x0=case_min.x; x1=x0+case_size.x; y0=case_min.y; y1=y0+case_size.y;
+    // Six MAGIC words and five four-point stars, distributed over all walls.
+    wall_label([x0+corner_r,y0],0,case_size.x-2*corner_r,2,2);
+    wall_label([x1,y0+corner_r],90,case_size.y-2*corner_r,1,1);
+    wall_label([x1-corner_r,y1],180,case_size.x-2*corner_r,2,2);
+    wall_label([x0,y1-corner_r],270,case_size.y-2*corner_r,1,0);
 }
 module base() {
     difference() {
@@ -142,7 +203,7 @@ module base() {
         insert_bores();
         // Screw force bears on the bosses, never on the shield PCB.
         for(i=[0:1]) axis(i) cylinder_z(lid_pad_d+2*fit,boss_top,case_top+eps);
-        if(show_labels) front_label();
+        if(show_labels) perimeter_labels();
     }
 }
 module skirt() {
@@ -235,7 +296,7 @@ module cable_reference() {
 module case_assembly() { base(); lid(); }
 module display(lift=0) {
     color(white) base();
-    color(blue) translate([0,0,lift*2]) lid();
+    color(white) translate([0,0,lift*2]) lid();
     if(show_hardware) {
         translate([0,0,lift]) shield_reference(false);
         translate([0,0,lift*3]) module_reference();
@@ -251,7 +312,11 @@ else if(part=="exploded") display(explode);
 else if(part=="section") intersection() { display(); box([-20,-10,-1],[70,pcb_d/2,30]); }
 else if(part=="layout") {
     color(white) base();
-    color(blue) translate([0,case_size.y+6,0]) printed_lid();
+    color(white) translate([0,case_size.y+6,0]) printed_lid();
+}
+else if(part=="led_membrane_probe") intersection() {
+    lid();
+    translate([led_center.x,led_center.y,0]) cylinder(d=3.2,h=case_top+eps);
 }
 else if(part=="collision_case") intersection() { base(); lid(); }
 else if(part=="collision_hardware") intersection() { case_assembly(); shield_reference(); }

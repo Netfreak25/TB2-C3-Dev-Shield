@@ -146,6 +146,14 @@ def main():
         if volume > ZERO_VOLUME_MM3:
             raise RuntimeError(f"Nominal collision: {name}: {volume} mm3")
         print(f"{name}: no volumetric collision", flush=True)
+    probe = export(scad, "led_membrane_probe", WORK / "led_membrane_probe.stl")
+    if not probe or not probe["closed_edges"] or probe["connected_parts"] != 1:
+        raise RuntimeError("LED membrane is missing or not a closed connected solid")
+    thickness = probe["bounds_mm"][2][1] - probe["bounds_mm"][2][0]
+    if abs(thickness - 0.2) > 0.00001:
+        raise RuntimeError(f"Expected one 0.2 mm LED-cover layer, found {thickness} mm")
+    report["led_membrane"] = {"thickness_mm": round(thickness, 5), "closed": True}
+    print("LED cover: continuous 0.2 mm skin", flush=True)
     (ROOT / "validation.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
     print("Geometry checks passed. Actual module, cable, print and fit remain unverified.")
 
