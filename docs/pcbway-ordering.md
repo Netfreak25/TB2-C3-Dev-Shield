@@ -83,4 +83,24 @@ Assemble 7 top-side THT components per BOM and Assembly.pdf. ESP32 module and it
 
 Board fabrication, components, assembly, shipping and taxes are separate quote items. No price estimate is a confirmed assembled-shield offer.
 
+## 3. Example cost for 50 bare PCBs
+
+An October 2026 invoice for **50 unpopulated shields** lists the following amounts in US dollars. This example covers PCB fabrication, shipping and the invoiced payment fee.
+
+| Item | Amount for 50 boards |
+|---|---:|
+| Bare PCBs | USD 20.46 |
+| Shipping | USD 8.37 |
+| Bank handling fee | USD 1.60 |
+| **Invoice total** | **USD 30.43** |
+
+- **PCB fabrication per board:** USD 20.46 / 50 = USD 0.4092, rounded to **USD 0.41**.
+- **Per board including shipping and the payment fee:** USD 30.43 / 50 = USD 0.6086, rounded to **USD 0.61**.
+
+The invoice's displayed unit price is rounded; the calculation uses the PCB line total of USD 20.46. The three cost items sum to USD 30.43.
+
+**Tax and payment scope:** the invoice shows the same USD 30.43 total with and without VAT, with no separate VAT or import-charge amount. It does not establish whether import charges were paid separately or will be collected on delivery. Those charges and the actual euro payment have not been confirmed for this example, so USD 0.61 is not a confirmed final delivered cost per board. Do not add import charges again if they have already been prepaid.
+
+Components, assembly, the ESP32 module, clip cable and enclosure are not included. Add the actual component purchases and any other confirmed charges to calculate the cost of a completed shield. This is a historical order example, not a current quote or a price guarantee.
+
 PCBWay references: [PCB order form](https://www.pcbway.com/orderonline.aspx), [assembly FAQ](https://www.pcbway.com/assembly-faq.html). Form labels and supplier requirements may change.

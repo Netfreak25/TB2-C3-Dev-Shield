@@ -9,7 +9,7 @@ A compact **3.3 V SPI shield for the ESP32-C3 SuperMini**, connecting an SOP8 cl
 ## Manufacture or modify the shield
 
 - **[Release v0.1.0 with PCBWay files](/Netfreak25/TB2-C3-Dev-Shield/releases/tag/v0.1.0)**
-- **[PCBWay ordering guide](docs/pcbway-ordering.md)** for bare PCBs or optional factory assembly.
+- **[PCBWay ordering guide](docs/pcbway-ordering.md)** for bare PCBs or optional factory assembly, including a [50-board cost example](docs/pcbway-ordering.md#3-example-cost-for-50-bare-pcbs).
 - **[Editable Fritzing design](hardware/TB2-C3-Dev-Shield-Assembly-Rev0.1.fzz)** and [editing notes](docs/editing.md).
 - [Pin mapping, soldering and operation](docs/hardware.md), [assembly instructions](docs/Assembly.pdf) and [schematic](docs/Schematic.svg).
 - [Validation status](docs/validation.md) and [export checks](docs/export-check.json).
