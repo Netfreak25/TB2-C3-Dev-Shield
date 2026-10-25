@@ -1,4 +1,4 @@
-/* TB2 C3 Dev Shield flat dock, Rev. 0.6. Units: mm.
+/* TB2 C3 Dev Shield flat dock, Rev. 0.7. Units: mm.
  * Construction coordinates follow the PCB drawing: USB edge y=0, +Y down.
  * Outputs convert once to Cartesian +Y up; PCB lower face stays at pcb_z.
  * Hardware envelopes and physical fit remain unverified.
@@ -6,7 +6,7 @@
  */
 
 /* [Output] */
-part = "assembly"; // [assembly,exploded,section,led_section,base,lid,layout,led_membrane_probe,collision_case,collision_hardware,collision_fasteners,collision_usb,collision_cable,collision_lid_path,collision_light_guide_tolerance]
+part = "assembly"; // [assembly,usb_connected,exploded,section,led_section,base,lid,layout,led_membrane_probe,collision_case,collision_hardware,collision_fasteners,collision_usb,collision_cable,collision_lid_path,collision_light_guide_tolerance]
 show_hardware = true;
 show_labels = true;
 explode = 14;
@@ -14,11 +14,13 @@ explode = 14;
 /* [Print fit] */
 wall = 1.8;
 floor_t = 1.6;
-roof_t = 1.6;
+roof_t = 1.2;
 fit = 0.25;
 pcb_xy_clearance = 0.15;
 pcb_hold_gap = 0.2;
-solder_clearance = 3.0;
+solder_clearance = 0.8;
+solder_tail_max = 1.3;
+solder_relief_floor_t = 0.8;
 print_layer_h = 0.2;
 
 /* [ACT light channel] */
@@ -40,18 +42,18 @@ letter_gap = 0.6;
 star_w = 2.8;
 star_h = 3.2;
 star_tip = 0.8;
-front_label_base_z = 1.9;
-front_label_height_scale = 0.75;
-
 /* [ESP32 stack - measure your module] */
 header_spacer_h = 2.5;
 module_pcb_t = 1.6;
+module_component_h = 2.2;
+module_roof_clearance = 0.5;
 usb_shell_h = 3.2;
 usb_plug_w = 16;
 usb_plug_h = 9;
 usb_notch_side_clearance = 2.0;
-usb_notch_floor_z = 5.8;
+usb_notch_bottom_clearance = 1.6;
 usb_notch_corner_r = 1.0;
+button_access_d = 3.0;
 
 /* [M2 hardware] */
 insert_bore_d = 3.2;
@@ -78,8 +80,9 @@ module_center = module_x + module_w/2;
 module_z = pcb_top + header_spacer_h;
 module_top = module_z + module_pcb_t;
 usb_center_z = module_top + usb_shell_h/2;
-case_top = pcb_top + 6.6;
+case_top = module_top + module_component_h + module_roof_clearance + roof_t;
 seam_z = case_top - roof_t;
+usb_notch_floor_z = usb_center_z - usb_plug_h/2 - usb_notch_bottom_clearance;
 case_min = [-7,-4];
 case_size = [53,pcb_d+8];
 corner_r = 3;
@@ -99,6 +102,10 @@ support_depth = 2;
 pcb_bearing = 0.4;
 module_open_min = [2.15,-0.5];
 module_open_max = [21.05,23.02];
+// Approximate NologoTech button centers; check the actual module variant.
+button_centers = [[module_x+6.2,8.7],[module_x+11.7,8.7]];
+usb_roof_slot_rear_y = 6.4;
+usb_roof_slot_half_w = 5.3;
 service_open_min = [23.5,-0.2];
 led_center = [36,20.75];
 led_membrane_t = print_layer_h;
@@ -109,6 +116,13 @@ light_neck_z = pcb_top+led_mount_h+led_height_tolerance+pcb_hold_gap+led_top_cle
 light_top_z = case_top-led_membrane_t;
 word_w = 4*letter_w+stroke_w+4*letter_gap;
 white = [0.94,0.95,0.94];
+// Narrow wells cover the released PCB's THT pad envelopes; the ribs stay 1.6 mm thick.
+solder_reliefs = [
+    [0.5,4.95,1.4,21.12],
+    [18.25,22.7,1.4,21.12],
+    [26.6,31.1,0.7,18.1],
+    [33.75,38.2,0.25,21.7]
+];
 
 assert(tip_floor>floor_t, "Screw tip relief would breach the floor");
 assert(insert_bottom>screw_tip, "Screws must reach the full insert thread");
@@ -128,10 +142,13 @@ assert(light_flat_x>33.35+0.15+pcb_xy_clearance,
        "Light channel would touch the maximum header envelope");
 assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
-assert(front_label_base_z>floor_t+0.2
-       && usb_notch_floor_z>front_label_base_z+letter_h*front_label_height_scale+0.4
+assert(pcb_z-solder_tail_max>solder_relief_floor_t+0.2,
+       "Trim the THT leads to maintain clearance above the floor wells");
+assert(usb_notch_floor_z>floor_t+1.5
        && usb_notch_floor_z<usb_center_z-usb_plug_h/2,
-       "USB relief must leave the side lettering and cross the lid seam");
+       "USB relief must preserve the bottom sill and clear the cable housing");
+assert(usb_roof_slot_rear_y<button_centers[0].y-button_access_d/2-0.5,
+       "USB roof slot must leave a bridge before the button access holes");
 
 module box(a,b) { translate(a) cube(b-a); }
 module pcb_to_world() {
@@ -166,6 +183,14 @@ module usb_access_cut() {
                 cylinder(r=r,h=y1-y0);
     }
 }
+module usb_roof_slot() {
+    box([module_center-usb_roof_slot_half_w,module_open_min.y-eps,0],
+        [module_center+usb_roof_slot_half_w,usb_roof_slot_rear_y,case_top+eps]);
+}
+module button_access_holes() {
+    for(point=button_centers)
+        translate([point.x,point.y,0]) cylinder(d=button_access_d,h=case_top+eps);
+}
 module light_channel_outer() {
     // A closed D-shaped tube: flatten only the outside toward J1.
     // The narrow side is one 0.4-mm extrusion; the other sides are 0.9 mm.
@@ -184,7 +209,11 @@ module light_channel_bore() {
     }
 }
 module openings() {
-    aperture(module_open_min,module_open_max);
+    // Leave a continuous roof over the module, with tool access to both buttons.
+    box([module_open_min.x,module_open_min.y,0],
+        [module_open_max.x,module_open_max.y,seam_z+eps]);
+    usb_roof_slot();
+    button_access_holes();
     aperture(service_open_min,service_open_max);
     // Closed, one-layer outer skin above the tapered light channel.
     light_channel_bore();
@@ -202,6 +231,11 @@ module pcb_seats() {
     }
     for(y=[-pcb_xy_clearance-0.3,pcb_d+pcb_xy_clearance])
         box([9,y,floor_t-eps],[13,y+0.3,pcb_top+0.1]);
+}
+module solder_relief_wells() {
+    for(region=solder_reliefs)
+        box([region[0],region[2],solder_relief_floor_t],
+            [region[1],region[3],floor_t+eps]);
 }
 module insert_bores() {
     for(i=[0:1]) axis(i) {
@@ -247,21 +281,22 @@ module magic_band(length,count,stars) {
         if(i<stars) translate([word_w+gap+star_w/2,letter_h/2]) magic_star();
     }
 }
-module wall_label(position,angle,length,count,stars,
-                  base_z=(case_top-letter_h)/2,height_scale=1) {
-    translate([position.x,position.y,base_z])
+module wall_label(position,angle,length,count,stars) {
+    translate([position.x,position.y,(case_top-letter_h)/2])
         rotate([0,0,angle]) rotate([90,0,0]) translate([0,0,-mark_depth])
-            linear_extrude(mark_depth+eps)
-                scale([1,height_scale]) magic_band(length,count,stars);
+            linear_extrude(mark_depth+eps) magic_band(length,count,stars);
 }
 module perimeter_labels() {
     x0=case_min.x; x1=x0+case_size.x; y0=case_min.y; y1=y0+case_size.y;
-    // Six MAGIC words and five four-point stars, distributed over all walls.
+    front_right_x = module_center+(usb_plug_w+2*usb_notch_side_clearance)/2;
+    // The lower USB sill is too short for lettering. Keep MAGIC on its right shoulder.
     // Glyphs are constructed in Cartesian coordinates. Apply the inverse
     // conversion here so the output transform does not mirror the lettering.
     pcb_to_world() {
-        wall_label([x0+corner_r,y0],0,case_size.x-2*corner_r,2,2,
-                   front_label_base_z,front_label_height_scale);
+        wall_label([front_right_x,y0],0,x1-corner_r-front_right_x,1,0);
+        translate([x0+corner_r+2,y0,case_top/2])
+            rotate([90,0,0]) translate([0,0,-mark_depth])
+                linear_extrude(mark_depth+eps) magic_star();
         wall_label([x1,y0+corner_r],90,case_size.y-2*corner_r,1,1);
         wall_label([x1-corner_r,y1],180,case_size.x-2*corner_r,2,2);
         wall_label([x0,y1-corner_r],270,case_size.y-2*corner_r,1,0);
@@ -276,6 +311,7 @@ module base() {
             for(i=[0:1]) axis(i) cylinder_z(boss_d,floor_t-eps,boss_top);
         }
         insert_bores();
+        solder_relief_wells();
         // Screw force bears on the bosses, never on the shield PCB.
         for(i=[0:1]) axis(i) cylinder_z(lid_pad_d+2*fit,boss_top,case_top+eps);
         usb_access_cut();
@@ -318,7 +354,8 @@ module module_reference() {
     color([0.12,0.14,0.19]) box([module_x,0,module_z],[module_x+module_w,pcb_d,module_top]);
     color([0.6,0.64,0.68]) box([module_center-4.5,-1,module_top],
         [module_center+4.5,6,module_top+usb_shell_h]);
-    color([0.25,0.28,0.3]) box([6.5,8,module_top],[16.7,20,module_top+2.2]);
+    color([0.25,0.28,0.3]) box([6.5,8,module_top],
+                               [16.7,20,module_top+module_component_h]);
 }
 module led_reference(worst=false) {
     // WP710A10LID: nominal 5.4-mm mounting envelope, 2.9-mm lens, 3.2-mm flange.
@@ -350,15 +387,19 @@ module shield_reference() {
     color([0.1,0.1,0.12]) box([26.31,0.38,pcb_top],[31.39,2.92,pcb_top+2.5]);
     color([0.82,0.67,0.28]) {
         for(x=[27.58,30.12],y=[1.65,9.5,12.04,14.58,17.12])
-            box([x-0.32,y-0.32,pcb_z-2],[x+0.32,y+0.32,pcb_top+8.5]);
+            box([x-0.32,y-0.32,pcb_z-solder_tail_max],
+                [x+0.32,y+0.32,pcb_top+8.5]);
         for(x=[3.98,19.22],n=[0:7]) {
             y=2.37+n*2.54;
-            box([x-0.32,y-0.32,pcb_z-2],[x+0.32,y+0.32,pcb_top]);
+            box([x-0.32,y-0.32,pcb_z-solder_tail_max],
+                [x+0.32,y+0.32,pcb_top]);
         }
         for(y=[1.2,8.82,11.12,18.74])
-            translate([36,y,pcb_z-2]) cylinder(d=0.6,h=pcb_t+2);
+            translate([36,y,pcb_z-solder_tail_max])
+                cylinder(d=0.6,h=pcb_t+solder_tail_max);
         for(x=[34.73,37.27])
-            translate([x,20.75,pcb_z-2]) cylinder(d=0.6,h=pcb_t+2);
+            translate([x,20.75,pcb_z-solder_tail_max])
+                cylinder(d=0.6,h=pcb_t+solder_tail_max);
     }
     color([0.75,0.66,0.44]) for(y=[5.01,14.93])
         box([34.95,y-1.85,pcb_top],[37.05,y+1.85,pcb_top+2.1]);
@@ -380,8 +421,13 @@ module fasteners() {
     }
 }
 module usb_plug_reference() {
-    box([module_center-usb_plug_w/2,-15,usb_center_z-usb_plug_h/2],
-        [module_center+usb_plug_w/2,-0.8,usb_center_z+usb_plug_h/2]);
+    union() {
+        // Cable housing approaches the wall; the narrower tongue continues into USB-C.
+        box([module_center-usb_plug_w/2,-15,usb_center_z-usb_plug_h/2],
+            [module_center+usb_plug_w/2,-0.8,usb_center_z+usb_plug_h/2]);
+        box([module_center-4,-0.8,usb_center_z-1.1],
+            [module_center+4,4.5,usb_center_z+1.1]);
+    }
 }
 module cable_reference() {
     // Mating plug and shunt keepouts: confirm against the actual cable.
@@ -414,6 +460,10 @@ pcb_to_world() {
 if(part=="base") base();
 else if(part=="lid") printed_lid();
 else if(part=="assembly") display();
+else if(part=="usb_connected") {
+    display();
+    color([0.08,0.08,0.09]) usb_plug_reference();
+}
 else if(part=="exploded") display(explode);
 else if(part=="section") intersection() { display(); box([-20,-10,-1],[70,pcb_d/2,30]); }
 else if(part=="led_section") light_section();

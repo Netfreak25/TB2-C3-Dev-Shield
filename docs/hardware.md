@@ -14,7 +14,7 @@ Two mounting options share the PCB:
 - **Direct pinheader mounting:** omit the female sockets and solder the module's two normal 1×8 male pinheaders directly through the matching shield rows. The plastic header spacer stays between the two PCBs; measure its height before choosing an enclosure.
 - **Castellated edge mounting:** leave the sockets out and use the exposed outer lands with a mechanically compatible castellated SuperMini. Actual module edge contacts, underside clearance and soldering access require verification.
 
-Factory assembly uses the socket-mounted option. The [printable flat dock](../enclosure/README.md) is fitted to direct pinheader mounting with a nominal 2.5 mm spacer. Do not install a directly soldered module over fitted sockets. The shield's 32 module holes are **1.10 mm**; this does not describe or alter the holes in the SuperMini itself.
+Factory assembly uses the socket-mounted option. The [printable flat dock](../enclosure/README.md) is fitted to direct pinheader mounting with a nominal 2.5 mm spacer. Its low floor requires all projecting through-hole leads and solder joints to be no more than 1.3 mm below the PCB. Do not install a directly soldered module over fitted sockets. The shield's 32 module holes are **1.10 mm**; this does not describe or alter the holes in the SuperMini itself.
 
 ## J1 and SOP8 mapping
 

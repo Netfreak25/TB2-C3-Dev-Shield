@@ -13,8 +13,8 @@ class LightChannelTest(unittest.TestCase):
         check_light_channel(ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
 
     def test_flat_roof_without_tube_is_rejected(self):
-        """A closed 1.6-mm plate around D1 cannot replace the projecting wall."""
-        vertices = [(x, y, z) for z in (0, 1.6) for y in (17, 25) for x in (32, 40)]
+        """A flat roof around D1 cannot replace the projecting wall."""
+        vertices = [(x, y, z) for z in (0, 1.2) for y in (17, 25) for x in (32, 40)]
         faces = ((0, 2, 1), (1, 2, 3), (4, 5, 6), (5, 7, 6),
                  (0, 1, 4), (1, 5, 4), (2, 6, 3), (3, 6, 7),
                  (0, 4, 2), (2, 4, 6), (1, 3, 5), (3, 7, 5))

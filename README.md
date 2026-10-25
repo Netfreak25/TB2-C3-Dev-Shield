@@ -49,7 +49,7 @@ For factory assembly, JP1 includes **the two pins only**: no removable shunt is 
 
 ## Printable flat dock
 
-The optional white [two-piece flat dock](enclosure/README.md) fits a SuperMini soldered directly to the shield through standard pinheaders, with one 2.5 mm spacer between the PCBs. It has `MAGIC` lettering on all four sides, an ACT light-guiding tube and a front USB-C relief. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
+The optional white [two-piece flat dock](enclosure/README.md) fits a SuperMini soldered directly to the shield through standard pinheaders, with one 2.5 mm spacer between the PCBs. The PCB sits 0.8 mm above the interior floor, with shallow wells for trimmed solder joints. A flat lid covers the ESP32 except for USB-C and small BOOT/RESET access holes; the cable connector and power jumper remain accessible. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
 
 ![TB2 C3 flat dock](enclosure/assembly.png)
 

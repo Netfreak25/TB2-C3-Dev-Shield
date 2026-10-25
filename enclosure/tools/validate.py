@@ -19,15 +19,22 @@ COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path",
               "light_guide_tolerance")
 ZERO_VOLUME_MM3 = 0.0001
 GEOMETRY_TOLERANCE_MM = 0.00001
+CUT_SURFACE_TOLERANCE_MM = 0.02
 LIGHT_RING_RADIUS_MM = 2.2
 LIGHT_RING_SAMPLES = 72
-LIGHT_TUBE_PRINT_HEIGHT_MM = 3.8
+LIGHT_TUBE_PRINT_HEIGHT_MM = 5.2
 USB_FRONT_SAMPLE_MM = 3.0
 USB_PLUG_HALF_WIDTH_MM = 8.0
 USB_SHOULDER_OFFSET_MM = 10.5
-USB_ENTRY_FLOOR_MM = 5.8
-USB_BASE_SEAM_MM = 11.2
-USB_LID_ROOF_MM = 1.6
+USB_ENTRY_FLOOR_MM = 3.6
+USB_BASE_SEAM_MM = 10.8
+USB_LID_ROOF_MM = 1.2
+SOLDER_RELIEF_FLOOR_MM = 0.8
+PCB_FLOOR_RIB_MM = 1.6
+BUTTON_CENTERS_MM = ((8.8, 8.7), (14.3, 8.7))
+BUTTON_INNER_SAMPLE_MM = 1.0
+BUTTON_OUTER_SAMPLE_MM = 2.0
+PAD_EDGE_SAMPLE_FRACTION = 0.9
 
 
 def vertical_surfaces(path, x, y):
@@ -67,19 +74,19 @@ def check_pcb_orientation(lid_path, design_path):
     if len(wrong_side) != 2 or wrong_side[1]-wrong_side[0] <= 0.2 + GEOMETRY_TOLERANCE_MM:
         raise RuntimeError(f"Unexpected LED pocket at the reflected D1 location: {wrong_side}")
     for pad in pads:
-        if (pad["ref"] in ("J1", "JP1", "JL", "JR") and not pad["pin"].endswith("D")
+        if (pad["ref"] in ("J1", "JP1")
                 and vertical_surfaces(lid_path, pad["x"], pad["y"])):
             raise RuntimeError(f"Lid obstructs PCB pad {pad['ref']}/{pad['pin']}")
     return {"pcb_source": "hardware/design.json", "d1_print_xy_mm": [x, y],
             "skin_surfaces_mm": skin, "reflected_position_surfaces_mm": wrong_side,
-            "connector_and_socket_pads_clear": True}
+            "connector_and_jumper_pads_clear": True}
 
 
 def check_light_channel(lid_path, design_path):
     """Require a continuous deep ring around the PCB's LED in the printed STL.
 
     A blind pocket in a flat roof cannot satisfy this check: every sampled
-    ray must cross a wall that projects 2.2 mm below the 1.6-mm roof.
+    ray must cross a wall that projects 4.0 mm below the 1.2-mm roof.
     """
     design = json.loads(design_path.read_text(encoding="utf-8"))
     pads = [p for p in design["pads"] if p["ref"] == "D1"]
@@ -94,7 +101,55 @@ def check_light_channel(lid_path, design_path):
             raise RuntimeError(f"Missing continuous LED tube at angle {math.degrees(angle):.1f}: {surfaces}")
     return {"ring_samples": LIGHT_RING_SAMPLES, "sample_radius_mm": LIGHT_RING_RADIUS_MM,
             "wall_depth_from_outer_face_mm": LIGHT_TUBE_PRINT_HEIGHT_MM,
-            "projection_below_roof_mm": 2.2}
+            "projection_below_roof_mm": LIGHT_TUBE_PRINT_HEIGHT_MM-USB_LID_ROOF_MM}
+
+
+def check_module_roof(lid_path, design_path):
+    """Require a closed roof, small button accesses and a local USB slot."""
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    module = design["module_mm"]
+    center_x = module[0] + module[2]/2
+    roof = vertical_surfaces(lid_path, center_x, 15)
+    if (len(roof) != 2 or abs(roof[0]) > GEOMETRY_TOLERANCE_MM
+            or abs(roof[1]-USB_LID_ROOF_MM) > CUT_SURFACE_TOLERANCE_MM):
+        raise RuntimeError(f"ESP32 roof is absent or the wrong thickness: {roof}")
+    for name, (x, y) in zip(("BOOT", "RESET"), BUTTON_CENTERS_MM):
+        for dx, dy in ((0, 0), (BUTTON_INNER_SAMPLE_MM, 0),
+                       (-BUTTON_INNER_SAMPLE_MM, 0), (0, BUTTON_INNER_SAMPLE_MM),
+                       (0, -BUTTON_INNER_SAMPLE_MM)):
+            if vertical_surfaces(lid_path, x+dx, y+dy):
+                raise RuntimeError(f"{name} access hole is blocked at offset {(dx, dy)}")
+        for dx, dy in ((BUTTON_OUTER_SAMPLE_MM, 0), (-BUTTON_OUTER_SAMPLE_MM, 0),
+                       (0, BUTTON_OUTER_SAMPLE_MM), (0, -BUTTON_OUTER_SAMPLE_MM)):
+            if not vertical_surfaces(lid_path, x+dx, y+dy):
+                raise RuntimeError(f"{name} access hole removed too much roof")
+        if not vertical_surfaces(lid_path, x, design["board_mm"][1]-y):
+            raise RuntimeError(f"{name} access hole is reflected across the board")
+    if vertical_surfaces(lid_path, center_x, 3):
+        raise RuntimeError("USB shell roof slot is blocked")
+    return {"pcb_source": "hardware/design.json", "roof_thickness_mm": roof[1]-roof[0],
+            "button_centers_mm": [list(point) for point in BUTTON_CENTERS_MM],
+            "usb_shell_slot_open": True}
+
+
+def check_solder_reliefs(base_path, design_path):
+    """Probe every released THT pad and an intact floor rib in the exported base."""
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    board_depth = design["board_mm"][1]
+    for pad in design["pads"]:
+        sample = pad["diameter"]/2*PAD_EDGE_SAMPLE_FRACTION
+        for dx, dy in ((0, 0), (sample, 0), (-sample, 0), (0, sample), (0, -sample)):
+            surfaces = vertical_surfaces(base_path, pad["x"]+dx,
+                                         board_depth-pad["y"]-dy)
+            if (len(surfaces) != 2 or abs(surfaces[0]) > GEOMETRY_TOLERANCE_MM
+                    or abs(surfaces[1]-SOLDER_RELIEF_FLOOR_MM) > GEOMETRY_TOLERANCE_MM):
+                raise RuntimeError(f"Missing solder well under {pad['ref']}/{pad['pin']}: {surfaces}")
+    rib = vertical_surfaces(base_path, 12, board_depth/2)
+    if (len(rib) != 2 or abs(rib[1]-PCB_FLOOR_RIB_MM) > GEOMETRY_TOLERANCE_MM):
+        raise RuntimeError(f"Intact floor rib missing: {rib}")
+    return {"pcb_source": "hardware/design.json", "covered_pads": len(design["pads"]),
+            "well_floor_mm": SOLDER_RELIEF_FLOOR_MM,
+            "intact_rib_floor_mm": PCB_FLOOR_RIB_MM}
 
 
 def check_usb_entry(base_path, lid_path, design_path):
@@ -211,7 +266,7 @@ def main():
     WORK.mkdir(exist_ok=True)
     if args.preview_only:
         for name in ("assembly", "exploded", "section", "layout", "top", "led_section",
-                     "usb_front"):
+                     "usb_front", "usb_connected"):
             center_z = 32 if name == "exploded" else 11
             target_y = 31 if name == "layout" else 11.26
             camera = ("70,90,55,19.5,8,9" if name == "section" else
@@ -220,7 +275,7 @@ def main():
                 camera = "19.5,11.26,0,0,0,0,150"
             elif name == "led_section":
                 camera = "45,-20,22,36,3,9.5"
-            elif name == "usb_front":
+            elif name in ("usb_front", "usb_connected"):
                 camera = "19.5,130,35,19.5,11.26,13"
             selector = "assembly" if name in ("top", "usb_front") else name
             command = [scad, "--preview", "--imgsize=1500,1100",
@@ -232,7 +287,7 @@ def main():
             (WORK / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
             if proc.returncode or not (ROOT / (name + ".png")).is_file():
                 raise RuntimeError(f"Preview failed: {name}")
-        print("Seven previews rendered; inspect them before delivery.")
+        print("Eight previews rendered; inspect them before delivery.")
         return
     slicer = executable("PRUSASLICER", "prusa-slicer", "Prusa3D/PrusaSlicer/prusa-slicer-console.exe")
     report = {"status": "unverified build candidate", "physical_fit_tested": False,
@@ -256,10 +311,16 @@ def main():
         print(f"{part}: one closed mesh, {info['volume_mm3']} mm3", flush=True)
     report["pcb_orientation"] = check_pcb_orientation(
         ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
-    print("PCB orientation: D1, connector and socket positions match the released layout", flush=True)
+    print("PCB orientation: D1, J1 and JP1 match the released layout", flush=True)
+    report["module_roof"] = check_module_roof(
+        ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
+    print("ESP32 roof: closed except for USB, BOOT and RESET accesses", flush=True)
+    report["solder_reliefs"] = check_solder_reliefs(
+        ROOT / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json")
+    print("Solder wells: all THT pads relieved; central floor rib intact", flush=True)
     report["light_channel"] = check_light_channel(
         ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
-    print("LED tube: continuous wall extends 2.2 mm below the lid roof", flush=True)
+    print("LED tube: continuous wall extends 4.0 mm below the lid roof", flush=True)
     report["usb_entry"] = check_usb_entry(
         ROOT / "TB2_C3_Case_base.stl", ROOT / "TB2_C3_Case_lid.stl",
         ROOT.parent / "hardware/design.json")
