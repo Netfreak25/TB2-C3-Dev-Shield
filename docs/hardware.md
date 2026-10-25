@@ -70,7 +70,7 @@ For factory-assembled boards, begin with inspection and continuity checks. The E
 
 ## Firmware and WebSerial
 
-The interface contract is **serprog on the native serial USB port**, using SPI2 with /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7. Keep Wi-Fi disabled. The hardware project does not prescribe a firmware download; use a build that explicitly matches this interface and pin assignment.
+The interface contract is **serprog on the native serial USB port**, using SPI2 with /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7. The [flasher v0.1 package](../firmware/flasher-v0.1/README.md) contains the matching source and ESP32-C3 images, with Wi-Fi disabled. Flashing the ESP32-C3 and recognizing its serial port do not establish a working connection to the target flash.
 
 Use a browser application that implements serprog over **WebSerial**, select the ESP32-C3 serial port and connect with a data-capable USB cable. Do not treat this as a Flipper WebUSB bridge. GPIO18/19 belong to the ESP32-C3's native USB connection and are not used for the target SPI bus. See [Espressif's USB Serial/JTAG documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html).
 
@@ -81,6 +81,6 @@ The target's battery and USB supply must remain disconnected.
 1. **Unpowered:** check continuity from the module pads through the cable to every SOP8 contact. Check adjacent contacts, 3.3 V and GND for unintended shorts. R1 and the LED branch are intentional component paths, not direct copper shorts.
 2. **JP1 open:** verify that its two pins have no direct copper bridge. Confirm R1 connects /CS to the target side of JP1.
 3. **Without a target:** verify 3.3 V, polarity and jumper operation. Then check the supply under the intended load. An open jumper does not guarantee a zero-voltage target when SPI signals are driven.
-4. **Read-only acceptance:** start at 500 kHz. For the intended 16 MiB flash, compare two complete 16,777,216-byte reads with each other and with a known-good dump of the same unchanged flash. Check ACT if fitted. Do not perform write or erase tests during this acceptance step.
+4. **First-dump acceptance:** follow the [first-dump procedure](first-dump.md), starting at 500 kHz. For the intended 16 MiB flash, compare two complete 16,777,216-byte reads with each other and with a known-good dump of the same unchanged flash. Check ACT if fitted. Do not program or erase flash during this acceptance step.
 
 Mechanical fit, real supply behaviour and these readback checks remain open. See the [validation record](validation.md).

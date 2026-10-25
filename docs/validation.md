@@ -2,6 +2,8 @@
 
 **Unverified build candidate.** File checks were completed on 2026-10-10. They do not establish that an assembled shield has passed physical acceptance.
 
+The [C3 flasher v0.1 images](../firmware/flasher-v0.1/README.md) were written to an ESP32-C3 and the three writes passed the programmer's hash verification. This does not verify the shield, cable, target supply or target-chip reads.
+
 ## File checks completed
 
 | Check | Result |

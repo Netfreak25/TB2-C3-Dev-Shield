@@ -4,6 +4,9 @@
 *.p12
 *.pfx
 *.bin
+!firmware/flasher-v0.1/images/*.bin
+!firmware/flasher-v0.1/images/bootloader/*.bin
+!firmware/flasher-v0.1/images/partition_table/*.bin
 *.dump
 *token*.txt
 *Token*.txt
