@@ -1,5 +1,10 @@
 # Changelog
 
+## Flasher v0.2 — 2026-10-25
+
+- Adapt the proven read-only Pico/flashrom acceptance sequence for the ESP32-C3 Shield: explicit target-reset checkpoints, conservative SPI clock verification, expected programmer and chip identity, and three complete matching reads.
+- Keep the Hardware Rev. 0.1 manufacturing package unchanged; physical target-flash validation remains pending.
+
 ## Flasher v0.1 — 2026-10-25
 
 - Add the pinned GPLv3 ESP32-C3 serprog source and previously flashed images.

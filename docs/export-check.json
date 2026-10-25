@@ -45,7 +45,7 @@
     "Actual module castellations and underside clearance",
     "Socket fit, iron access, USB plug and actual IDC cable housing",
     "JP1 operation under load and SPI backfeed",
-    "ACT and two 16-MiB reads at 500 kHz against known-good dump"
+    "ACT and three 16-MiB reads at 500 kHz against known-good dump if available"
   ],
   "manufacturing_adjustment": [
     "Top solder-mask openings extended across 16 native copper bridges.",

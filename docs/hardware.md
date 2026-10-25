@@ -70,7 +70,7 @@ For factory-assembled boards, begin with inspection and continuity checks. The E
 
 ## Firmware and WebSerial
 
-The interface contract is **serprog on the native serial USB port**, using SPI2 with /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7. The [flasher v0.1 package](../firmware/flasher-v0.1/README.md) contains the matching source and ESP32-C3 images, with Wi-Fi disabled. Flashing the ESP32-C3 and recognizing its serial port do not establish a working connection to the target flash.
+The interface contract is **serprog on the native serial USB port**, using SPI2 with /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7. The [flasher v0.2 package](../firmware/flasher-v0.2/README.md) contains the matching source and ESP32-C3 images, with Wi-Fi disabled. Flashing the ESP32-C3 and recognizing its serial port do not establish a working connection to the target flash.
 
 For browser use, a compatible application can implement serprog over **WebSerial** through the ESP32-C3 serial port and a data-capable USB cable. The [first-dump procedure](first-dump.md) uses PowerShell and flashrom. Do not treat this as a Flipper WebUSB bridge. GPIO18/19 belong to the ESP32-C3's native USB connection and are not used for the target SPI bus. See [Espressif's USB Serial/JTAG documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html).
 

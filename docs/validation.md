@@ -4,6 +4,8 @@
 
 The [C3 flasher v0.1 images](../firmware/flasher-v0.1/README.md) were written to an ESP32-C3 and the three writes passed the programmer's hash verification. This does not verify the shield, cable, target supply or target-chip reads.
 
+The [v0.2 firmware](../firmware/flasher-v0.2/README.md) and its [first-dump runner](../firmware/flasher-v0.2/tools/first_dump.ps1) are software candidates. Their build and offline checks do not establish target-chip communication or a successful physical reset.
+
 ## File checks completed
 
 | Check | Result |
@@ -33,6 +35,6 @@ Detailed values are in [export-check.json](export-check.json). The manufacturing
 - Check continuity through the clip and unintended shorts.
 - Measure target supply without a target and under load, including open-JP1 behaviour and potential SPI backfeeding.
 - Scan the manufactured top and bottom QR codes.
-- Check ACT if fitted; compare two complete 16 MiB reads at 500 kHz with each other and with a known-good dump of the same unchanged flash.
+- Check ACT if fitted; compare three complete 16 MiB reads at 500 kHz with each other and with a known-good dump of the same unchanged flash, if available.
 
 Write and erase operations are excluded from the initial acceptance procedure. Supplier review, successful DRC and a readable preview are not substitutes for these hardware checks.

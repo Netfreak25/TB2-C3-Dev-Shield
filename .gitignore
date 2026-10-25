@@ -7,12 +7,16 @@
 !firmware/flasher-v0.1/images/*.bin
 !firmware/flasher-v0.1/images/bootloader/*.bin
 !firmware/flasher-v0.1/images/partition_table/*.bin
+!firmware/flasher-v0.2/images/main.bin
+!firmware/flasher-v0.2/images/bootloader/bootloader.bin
+!firmware/flasher-v0.2/images/partition_table/partition-table.bin
 *.dump
 *token*.txt
 *Token*.txt
 .env
 .env.*
 .build/
+firmware/flasher-v0.2/source/build/
 __pycache__/
 .DS_Store
 Thumbs.db

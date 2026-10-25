@@ -55,7 +55,7 @@ The optional white [two-piece flat dock](enclosure/README.md), with `MAGIC` lett
 
 ## Firmware and browser connection
 
-The [C3 serprog flasher v0.1](firmware/flasher-v0.1/README.md) provides the source and the three flashable images for SPI2 with /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7. It uses the ESP32-C3's native serial USB port and has Wi-Fi disabled. A compatible browser application connects through **WebSerial**. The shield itself is passive and needs no firmware.
+The [C3 serprog flasher v0.2](firmware/flasher-v0.2/README.md) provides the source and three flashable images for SPI2 with /CS = GPIO4, MISO = GPIO5, CLK = GPIO6 and MOSI = GPIO7. It uses the ESP32-C3's native serial USB port and has Wi-Fi disabled. A compatible browser application connects through **WebSerial**. The shield itself is passive and needs no firmware.
 
 For the first read-only backup, follow the [PowerShell/flashrom procedure](docs/first-dump.md) and [hardware checks](docs/hardware.md#firmware-and-webserial). This board is the ESP32-C3 counterpart to the [Flipper TB2 Dev Board](https://github.com/Netfreak25/TB2-Dev-Board); the two hosts use different GPIO assignments and USB interfaces.
 
@@ -67,4 +67,4 @@ JP1 interrupts only the target supply. It does **not** isolate the SPI signals o
 
 ## License
 
-The hardware design and accompanying source material are licensed under the [CERN Open Hardware Licence Version 2 — Permissive](LICENSE). The separately packaged [serprog firmware](firmware/flasher-v0.1/README.md) is licensed under GPLv3.
+The hardware design and accompanying source material are licensed under the [CERN Open Hardware Licence Version 2 — Permissive](LICENSE). The separately packaged [serprog firmware](firmware/flasher-v0.2/README.md) is licensed under GPLv3.
