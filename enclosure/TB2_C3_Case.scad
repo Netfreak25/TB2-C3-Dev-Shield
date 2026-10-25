@@ -1,4 +1,4 @@
-/* TB2 C3 Dev Shield flat dock, Rev. 0.4. Units: mm.
+/* TB2 C3 Dev Shield flat dock, Rev. 0.5. Units: mm.
  * Construction coordinates follow the PCB drawing: USB edge y=0, +Y down.
  * Outputs convert once to Cartesian +Y up; PCB lower face stays at pcb_z.
  * Hardware envelopes and physical fit remain unverified.
@@ -48,6 +48,9 @@ module_pcb_t = 1.6;
 usb_shell_h = 3.2;
 usb_plug_w = 14;
 usb_plug_h = 7;
+usb_notch_side_clearance = 1.0;
+usb_notch_floor_z = 9.0;
+usb_notch_corner_r = 1.0;
 
 /* [M2 hardware] */
 insert_bore_d = 3.2;
@@ -123,6 +126,8 @@ assert(light_flat_x>33.35+0.15+pcb_xy_clearance,
        "Light channel would touch the maximum header envelope");
 assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
+assert(usb_notch_floor_z>(case_top+letter_h)/2+0.2 && usb_notch_floor_z<seam_z,
+       "USB relief must leave the side lettering and cross the lid seam");
 
 module box(a,b) { translate(a) cube(b-a); }
 module pcb_to_world() {
@@ -140,6 +145,23 @@ module slab(z0,z1,inset=0) {
 module axis(i) { translate([screw_axes[i].x,screw_axes[i].y,0]) children(); }
 module cylinder_z(d,z0,z1) { translate([0,0,z0]) cylinder(d=d,h=z1-z0); }
 module aperture(a,b) { box([a.x,a.y,0],[b.x,b.y,case_top+eps]); }
+module usb_access_cut() {
+    // Open-top relief in the USB-facing wall. The module port remains above it.
+    width = usb_plug_w + 2*usb_notch_side_clearance;
+    x0 = module_center-width/2;
+    x1 = module_center+width/2;
+    y0 = case_min.y-eps;
+    y1 = module_open_min.y+eps;
+    z0 = usb_notch_floor_z;
+    r = usb_notch_corner_r;
+    union() {
+        box([x0+r,y0,z0],[x1-r,y1,case_top+eps]);
+        box([x0,y0,z0+r],[x1,y1,case_top+eps]);
+        for(x=[x0+r,x1-r])
+            translate([x,y0,z0+r]) rotate([-90,0,0])
+                cylinder(r=r,h=y1-y0);
+    }
+}
 module light_channel_outer() {
     // A closed D-shaped tube: flatten only the outside toward J1.
     // The narrow side is one 0.4-mm extrusion; the other sides are 0.9 mm.
@@ -249,6 +271,7 @@ module base() {
         insert_bores();
         // Screw force bears on the bosses, never on the shield PCB.
         for(i=[0:1]) axis(i) cylinder_z(lid_pad_d+2*fit,boss_top,case_top+eps);
+        usb_access_cut();
         if(show_labels) perimeter_labels();
     }
 }
@@ -277,6 +300,7 @@ module lid() {
         }
         for(i=[0:1]) axis(i) cylinder_z(screw_hole_d,boss_top-eps,case_top+eps);
         openings();
+        usb_access_cut();
     }
 }
 

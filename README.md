@@ -49,7 +49,7 @@ For factory assembly, JP1 includes **the two pins only**: no removable shunt is 
 
 ## Printable flat dock
 
-The optional white [two-piece flat dock](enclosure/README.md), with `MAGIC` lettering on all four sides and an ACT light-guiding tube beneath a single-layer cover, protects the shield underside while leaving the ESP32, USB-C, buttons, cable connector and power jumper accessible. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
+The optional white [two-piece flat dock](enclosure/README.md), with `MAGIC` lettering on all four sides, an ACT light-guiding tube and a front USB-C relief, protects the shield underside while leaving the ESP32, buttons, cable connector and power jumper accessible. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
 
 ![TB2 C3 flat dock](enclosure/assembly.png)
 

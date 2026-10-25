@@ -22,6 +22,12 @@ GEOMETRY_TOLERANCE_MM = 0.00001
 LIGHT_RING_RADIUS_MM = 2.2
 LIGHT_RING_SAMPLES = 72
 LIGHT_TUBE_PRINT_HEIGHT_MM = 3.8
+USB_FRONT_SAMPLE_MM = 3.0
+USB_PLUG_HALF_WIDTH_MM = 7.0
+USB_SHOULDER_OFFSET_MM = 8.5
+USB_ENTRY_FLOOR_MM = 9.0
+USB_BASE_SEAM_MM = 11.2
+USB_LID_ROOF_MM = 1.6
 
 
 def vertical_surfaces(path, x, y):
@@ -89,6 +95,37 @@ def check_light_channel(lid_path, design_path):
     return {"ring_samples": LIGHT_RING_SAMPLES, "sample_radius_mm": LIGHT_RING_RADIUS_MM,
             "wall_depth_from_outer_face_mm": LIGHT_TUBE_PRINT_HEIGHT_MM,
             "projection_below_roof_mm": 2.2}
+
+
+def check_usb_entry(base_path, lid_path, design_path):
+    """Check the delivered meshes leave an open USB-facing wall relief.
+
+    The connector center comes from the independent PCB socket-pad layout.
+    The base and print-oriented lid have opposite Y transforms.
+    """
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    sockets = [pad for pad in design["pads"] if pad["ref"] in ("JL", "JR")]
+    center_x = (min(pad["x"] for pad in sockets) + max(pad["x"] for pad in sockets)) / 2
+    base_y = design["board_mm"][1] + USB_FRONT_SAMPLE_MM
+    lid_y = -USB_FRONT_SAMPLE_MM
+    for offset in (-USB_PLUG_HALF_WIDTH_MM, 0, USB_PLUG_HALF_WIDTH_MM):
+        x = center_x + offset
+        base = vertical_surfaces(base_path, x, base_y)
+        lid = vertical_surfaces(lid_path, x, lid_y)
+        if (len(base) != 2 or abs(base[0]) > GEOMETRY_TOLERANCE_MM
+                or abs(base[1] - USB_ENTRY_FLOOR_MM) > GEOMETRY_TOLERANCE_MM or lid):
+            raise RuntimeError(f"USB wall relief is obstructed at x={x}: base={base}, lid={lid}")
+    for offset in (-USB_SHOULDER_OFFSET_MM, USB_SHOULDER_OFFSET_MM):
+        x = center_x + offset
+        base = vertical_surfaces(base_path, x, base_y)
+        lid = vertical_surfaces(lid_path, x, lid_y)
+        if (len(base) != 2 or abs(base[1]-USB_BASE_SEAM_MM) > GEOMETRY_TOLERANCE_MM
+                or len(lid) != 2 or abs(lid[1]-USB_LID_ROOF_MM) > GEOMETRY_TOLERANCE_MM):
+            raise RuntimeError(f"USB-side shoulders are missing at x={x}: base={base}, lid={lid}")
+    return {"pcb_source": "hardware/design.json", "socket_center_x_mm": center_x,
+            "clear_entry_width_mm": 2*USB_PLUG_HALF_WIDTH_MM,
+            "base_relief_floor_mm": USB_ENTRY_FLOOR_MM,
+            "continuous_shoulders": True}
 
 
 def executable(variable, name, windows_path):
@@ -173,7 +210,8 @@ def main():
     scad = executable("OPENSCAD", "openscad", "OpenSCAD/openscad.com")
     WORK.mkdir(exist_ok=True)
     if args.preview_only:
-        for name in ("assembly", "exploded", "section", "layout", "top", "led_section"):
+        for name in ("assembly", "exploded", "section", "layout", "top", "led_section",
+                     "usb_front"):
             center_z = 32 if name == "exploded" else 11
             target_y = 31 if name == "layout" else 11.26
             camera = ("70,90,55,19.5,8,9" if name == "section" else
@@ -182,17 +220,19 @@ def main():
                 camera = "19.5,11.26,0,0,0,0,150"
             elif name == "led_section":
                 camera = "45,-20,22,36,3,9.5"
-            selector = "assembly" if name == "top" else name
+            elif name == "usb_front":
+                camera = "19.5,130,35,19.5,11.26,13"
+            selector = "assembly" if name in ("top", "usb_front") else name
             command = [scad, "--preview", "--imgsize=1500,1100",
                        "--projection=o", "--colorscheme=Tomorrow", f"--camera={camera}",
                        "-D", f'part="{selector}"', "-o", str(ROOT / (name + ".png")), str(SOURCE)]
-            if name not in ("section", "top", "led_section"):
+            if name not in ("section", "top", "led_section", "usb_front"):
                 command.append("--viewall")
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False)
             (WORK / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
             if proc.returncode or not (ROOT / (name + ".png")).is_file():
                 raise RuntimeError(f"Preview failed: {name}")
-        print("Six previews rendered; inspect them before delivery.")
+        print("Seven previews rendered; inspect them before delivery.")
         return
     slicer = executable("PRUSASLICER", "prusa-slicer", "Prusa3D/PrusaSlicer/prusa-slicer-console.exe")
     report = {"status": "unverified build candidate", "physical_fit_tested": False,
@@ -220,6 +260,10 @@ def main():
     report["light_channel"] = check_light_channel(
         ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
     print("LED tube: continuous wall extends 2.2 mm below the lid roof", flush=True)
+    report["usb_entry"] = check_usb_entry(
+        ROOT / "TB2_C3_Case_base.stl", ROOT / "TB2_C3_Case_lid.stl",
+        ROOT.parent / "hardware/design.json")
+    print("USB entry: open front relief with intact side shoulders", flush=True)
     for name in COLLISIONS:
         info = export(scad, "collision_" + name, WORK / ("collision_" + name + ".stl"))
         volume = info["volume_mm3"] if info else 0
