@@ -76,7 +76,7 @@ function Invoke-Scenario {
     $failed = $false
     $failureMessage = ''
     try {
-        $parameters = @{ Port = 'COM17'; SpiSpeed = $Speed; OutputRoot = $scenarioRoot; FlashromPath = $fake; ContinueKey = $testContinueKey }
+        $parameters = @{ Port = 'COM17'; SpiSpeed = $Speed; OutputRoot = $scenarioRoot; FlashromPath = $fake; ManualReset = $true; ContinueKey = $testContinueKey }
         if ($ReferenceDump) { $parameters.ReferenceDump = $ReferenceDump }
         $null = & $runner @parameters 6>&1
     } catch {
@@ -99,6 +99,99 @@ function Invoke-Scenario {
     Assert-Equal -Expected $Calls -Actual $logs.Count -Label "$Name retained logs"
     if ($Succeeds) {
         Assert-Equal -Expected 4 -Actual $global:KeyPressCount -Label "$Name keypress gates"
+        Assert-Equal -Expected 3 -Actual @(Get-ChildItem -LiteralPath $session[0].FullName -Filter 'read-*.bin').Count -Label "$Name retained reads"
+        if (-not (Test-Path -LiteralPath (Join-Path $session[0].FullName 'SHA256SUMS.txt'))) {
+            throw "$Name has no checksum manifest."
+        }
+    }
+    Write-Host "PASS $Name"
+    return $session[0].FullName
+}
+
+# Replace only PnP discovery in this test process. The runner never opens COM17.
+$global:MockPortInstanceId = 'USB\VID_TEST&PID_0001&MI_00\mock-port'
+$global:MockArrivalBase = [datetime]'2026-10-25T12:00:00'
+$global:MockArrivalQueries = 0
+$global:MockArrivalOffsets = @(0)
+$global:MockPnPMode = 'normal'
+
+function global:Get-PnpDevice {
+    [CmdletBinding()]
+    param([string]$InstanceId, [string]$Class, [switch]$PresentOnly)
+
+    if (-not $PresentOnly -or ($Class -and $Class -ne 'Ports') -or
+        ($InstanceId -and $InstanceId -cne $global:MockPortInstanceId)) {
+        throw 'The runner made an unexpected PnP device query.'
+    }
+    $portName = if ($global:MockPnPMode -eq 'other-port' -and $global:MockArrivalQueries -ge 3) {
+        'Other serial device (COM18)'
+    } else {
+        'Test serial device (COM17)'
+    }
+    $deviceId = if ($global:MockPnPMode -eq 'other-instance' -and $global:MockArrivalQueries -ge 3) {
+        'USB\VID_TEST&PID_0001&MI_00\other-device'
+    } else {
+        $global:MockPortInstanceId
+    }
+    return [pscustomobject]@{ FriendlyName = $portName; InstanceId = $deviceId; Status = 'OK' }
+}
+
+function global:Get-PnpDeviceProperty {
+    [CmdletBinding()]
+    param([string]$InstanceId, [string]$KeyName)
+
+    if ($InstanceId -cne $global:MockPortInstanceId -or
+        $KeyName -cne 'DEVPKEY_Device_LastArrivalDate') {
+        throw 'The runner made an unexpected PnP property query.'
+    }
+    $index = [Math]::Min($global:MockArrivalQueries, $global:MockArrivalOffsets.Count - 1)
+    $global:MockArrivalQueries++
+    return [pscustomobject]@{ Data = $global:MockArrivalBase.AddSeconds($global:MockArrivalOffsets[$index]) }
+}
+
+function Invoke-AutoScenario {
+    <# Replay exact-port PnP arrivals and check that flashrom runs only after a fresh one. #>
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][int[]]$ArrivalOffsets,
+        [ValidateSet('normal', 'other-port', 'other-instance')][string]$PnPMode = 'normal',
+        [Parameter(Mandatory = $true)][int]$Calls,
+        [Parameter(Mandatory = $true)][bool]$Succeeds,
+        [string]$ErrorPattern = ''
+    )
+
+    $scenarioRoot = Join-Path $testRoot $Name
+    New-Item -ItemType Directory -Path $scenarioRoot | Out-Null
+    $env:TB2_FAKE_MODE = 'normal'
+    $env:TB2_FAKE_COUNTER = Join-Path $scenarioRoot 'calls.txt'
+    $global:MockArrivalOffsets = $ArrivalOffsets
+    $global:MockArrivalQueries = 0
+    $global:MockPnPMode = $PnPMode
+    $global:KeyPressCount = 0
+    $global:RejectKeyAt = 1
+
+    $failed = $false
+    $failureMessage = ''
+    try {
+        $null = & $runner -Port COM17 -OutputRoot $scenarioRoot -FlashromPath $fake -ResetTimeoutSeconds 1 -ContinueKey $testContinueKey 6>&1
+    } catch {
+        $failed = $true
+        $failureMessage = $_.Exception.Message
+    }
+    if ($Succeeds -eq $failed) { throw "$Name unexpected result: $failureMessage" }
+    if ($failed -and $ErrorPattern -and $failureMessage -notmatch $ErrorPattern) {
+        throw "$Name failed for the wrong reason: $failureMessage"
+    }
+    Assert-Equal -Expected 0 -Actual $global:KeyPressCount -Label "$Name manual keypresses"
+    if ($global:MockArrivalQueries -lt 3) { throw "$Name did not reach the automatic reset gate." }
+
+    $actualCalls = if (Test-Path -LiteralPath $env:TB2_FAKE_COUNTER) { [int](Get-Content -LiteralPath $env:TB2_FAKE_COUNTER -Raw) } else { 0 }
+    Assert-Equal -Expected $Calls -Actual $actualCalls -Label "$Name flashrom calls"
+    $session = @(Get-ChildItem -LiteralPath $scenarioRoot -Directory)
+    Assert-Equal -Expected 1 -Actual $session.Count -Label "$Name session count"
+    $logs = @(Get-ChildItem -LiteralPath $session[0].FullName -Filter '*.log')
+    Assert-Equal -Expected $Calls -Actual $logs.Count -Label "$Name retained logs"
+    if ($Succeeds) {
         Assert-Equal -Expected 3 -Actual @(Get-ChildItem -LiteralPath $session[0].FullName -Filter 'read-*.bin').Count -Label "$Name retained reads"
         if (-not (Test-Path -LiteralPath (Join-Path $session[0].FullName 'SHA256SUMS.txt'))) {
             throw "$Name has no checksum manifest."
@@ -138,7 +231,7 @@ try {
     $env:TB2_FAKE_COUNTER = Join-Path $testRoot 'short-reference-calls.txt'
     $rejectedReference = $false
     try {
-        $null = & $runner -Port COM17 -OutputRoot $preflightOutput -ReferenceDump $tooShortReference -FlashromPath $fake -ContinueKey $testContinueKey 6>&1
+        $null = & $runner -Port COM17 -OutputRoot $preflightOutput -ReferenceDump $tooShortReference -FlashromPath $fake -ManualReset -ContinueKey $testContinueKey 6>&1
     } catch {
         $rejectedReference = $_.Exception.Message -match 'ReferenceDump must be exactly'
     }
@@ -167,12 +260,23 @@ try {
     $global:KeyPressCount = 0
     $rejectedCheckout = $false
     try {
-        $null = & $runner -Port COM17 -OutputRoot (Join-Path (Split-Path $runner -Parent) 'would-be-public-dump') -FlashromPath $fake -ContinueKey $testContinueKey 6>&1
+        $null = & $runner -Port COM17 -OutputRoot (Join-Path (Split-Path $runner -Parent) 'would-be-public-dump') -FlashromPath $fake -ManualReset -ContinueKey $testContinueKey 6>&1
     } catch { $rejectedCheckout = $true }
     Assert-Equal -Expected $true -Actual $rejectedCheckout -Label 'Git checkout output rejection'
     Assert-Equal -Expected 0 -Actual $global:KeyPressCount -Label 'no keypress for checkout output'
     Write-Output 'PASS private output guard'
-    Write-Output 'PASS all 12 fake-flashrom scenarios'
+
+    $autoSuccess = @(0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4)
+    $null = Invoke-AutoScenario -Name 'auto-four-fresh-arrivals' -ArrivalOffsets $autoSuccess -Calls 4 -Succeeds $true
+    $null = Invoke-AutoScenario -Name 'auto-no-new-arrival' -ArrivalOffsets @(0) -Calls 0 -Succeeds $false -ErrorPattern 'Timed out waiting for a new COM17 USB arrival before chip detection'
+    $null = Invoke-AutoScenario -Name 'auto-other-port' -ArrivalOffsets @(0, 0, 0, 1) -PnPMode 'other-port' -Calls 0 -Succeeds $false -ErrorPattern 'COM17 is no longer assigned'
+    $null = Invoke-AutoScenario -Name 'auto-other-instance' -ArrivalOffsets @(0, 0, 0, 1) -PnPMode 'other-instance' -Calls 0 -Succeeds $false -ErrorPattern 'COM17 now belongs to another USB device'
+    $autoPartial = Invoke-AutoScenario -Name 'auto-later-timeout' -ArrivalOffsets @(0, 0, 0, 1, 1, 1, 2, 2, 2) -Calls 2 -Succeeds $false -ErrorPattern 'Timed out waiting for a new COM17 USB arrival before read 2'
+    if (-not (Test-Path -LiteralPath (Join-Path $autoPartial 'read-1.bin'))) {
+        throw 'The first read was lost after a later automatic reset timeout.'
+    }
+    Write-Host 'PASS automatic reset retained the earlier read after timeout'
+    Write-Output 'PASS 12 manual and 5 automatic fake-flashrom scenarios'
 } finally {
     Remove-Item Env:\TB2_FAKE_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:\TB2_FAKE_COUNTER -ErrorAction SilentlyContinue

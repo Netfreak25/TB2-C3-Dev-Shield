@@ -14,6 +14,11 @@ param(
 
     [string]$FlashromPath = 'flashrom',
 
+    [switch]$ManualReset,
+
+    [ValidateRange(1, 3600)]
+    [int]$ResetTimeoutSeconds = 180,
+
     [Parameter(DontShow = $true)]
     [scriptblock]$ContinueKey = {
         $Host.UI.RawUI.FlushInputBuffer()
@@ -29,6 +34,7 @@ $chipName = 'W25Q128.V'
 $programmerName = 'tb2-c3-serprog'
 $requestedHz = if ($SpiSpeed -eq '250k') { 250000 } else { 500000 }
 $programmer = "serprog:dev=${Port}:115200,spispeed=$SpiSpeed"
+$resetPollMilliseconds = 200
 
 function Assert-PrivatePath {
     <# Keep both output and reference images outside Git checkouts and links. #>
@@ -56,17 +62,108 @@ function Assert-PrivatePath {
     return $fullPath
 }
 
-function Wait-ForTargetReset {
-    <# A keypress only resumes execution; the operator must measure the target rail. #>
-    param([Parameter(Mandatory = $true)][string]$Operation)
+function Get-PortSnapshot {
+    <# Observe Windows PnP without opening the serial port. #>
+    param(
+        [Parameter(Mandatory = $true)][string]$PortName,
+        [string]$ExpectedInstanceId
+    )
 
-    Write-Host "Before $Operation`: keep target battery/USB disconnected. Open JP1 and verify flash VCC falls, then close JP1 and verify about 3.3 V at the chip."
-    Write-Host 'After measuring both voltages, press any key to continue (Ctrl+C aborts).'
+    $portSuffix = '\(' + [regex]::Escape($PortName) + '\)$'
     try {
-        $null = & $ContinueKey
+        if ($ExpectedInstanceId) {
+            $devices = @(Get-PnpDevice -InstanceId $ExpectedInstanceId -PresentOnly -ErrorAction Stop)
+        } else {
+            $devices = @(Get-PnpDevice -Class Ports -PresentOnly -ErrorAction Stop |
+                Where-Object { $_.FriendlyName -match $portSuffix })
+        }
     } catch {
-        throw "No keypress before $Operation; flashrom was not started. An interactive console is required. $($_.Exception.Message)"
+        if ($ExpectedInstanceId -and $_.FullyQualifiedErrorId -like 'CmdletizationQuery_NotFound*') {
+            return $null
+        }
+        throw "Cannot inspect Windows PnP port $PortName`: $($_.Exception.Message)"
     }
+    if ($devices.Count -eq 0) { return $null }
+    if ($devices.Count -ne 1) { throw "More than one device matches $PortName; automatic reset detection is unsafe." }
+
+    $device = $devices[0]
+    if ($device.Status -ne 'OK') { return $null }
+    if ($device.FriendlyName -notmatch $portSuffix) {
+        throw "$PortName is no longer assigned to the selected USB device. Restart with the current port."
+    }
+    $instanceId = [string]$device.InstanceId
+    if ($instanceId -notlike 'USB\*') {
+        throw "$PortName is not a USB serial device; use -ManualReset."
+    }
+    if ($ExpectedInstanceId -and $instanceId -ine $ExpectedInstanceId) {
+        throw "$PortName now belongs to another USB device; restart with the current port."
+    }
+
+    try {
+        $arrival = Get-PnpDeviceProperty -InstanceId $instanceId -KeyName 'DEVPKEY_Device_LastArrivalDate' -ErrorAction Stop
+    } catch {
+        if ($ExpectedInstanceId -and $_.FullyQualifiedErrorId -like 'CmdletizationQuery_NotFound*') {
+            return $null
+        }
+        throw "Cannot read $PortName arrival time: $($_.Exception.Message)"
+    }
+    if ($arrival.Data -isnot [datetime]) {
+        throw "$PortName has no usable last-arrival timestamp; use -ManualReset."
+    }
+    return [pscustomobject]@{ InstanceId = $instanceId; LastArrival = [datetime]$arrival.Data }
+}
+
+function Wait-ForTargetReset {
+    <# USB re-enumeration is only a continuation signal, not proof of target VCC reset. #>
+    param(
+        [Parameter(Mandatory = $true)][string]$Operation,
+        [string]$PortInstanceId
+    )
+
+    if ($ManualReset) {
+        Write-Host "Before $Operation`: keep target battery/USB disconnected. Open JP1 and verify flash VCC falls, then close JP1 and verify about 3.3 V at the chip."
+        Write-Host 'After measuring both voltages, press any key to continue (Ctrl+C aborts).'
+        try {
+            $null = & $ContinueKey
+        } catch {
+            throw "No keypress before $Operation; flashrom was not started. An interactive console is required. $($_.Exception.Message)"
+        }
+        return
+    }
+
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    $previousArrival = $null
+    $baseline = $null
+    Write-Host "Waiting for $Port to be present and stable before $Operation..."
+    while ($clock.Elapsed.TotalSeconds -lt $ResetTimeoutSeconds) {
+        $candidate = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
+        if ($candidate) {
+            if ($previousArrival -and $candidate.LastArrival -eq $previousArrival) {
+                $baseline = $candidate
+                break
+            }
+            $previousArrival = $candidate.LastArrival
+        } else {
+            $previousArrival = $null
+        }
+        Start-Sleep -Milliseconds $resetPollMilliseconds
+    }
+    if (-not $baseline) {
+        throw "$Port did not become stable before $Operation; flashrom was not started."
+    }
+
+    $clock.Restart()
+    Write-Host "Before $Operation`: keep target battery/USB disconnected. The JP1 off/on voltage check must already be complete; automatic mode continues immediately after USB re-enumeration."
+    Write-Host "Open JP1, then close it. Waiting for the selected USB device on $Port to reconnect (Ctrl+C aborts). This does not prove that target VCC fell."
+    while ($clock.Elapsed.TotalSeconds -lt $ResetTimeoutSeconds) {
+        $current = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
+        if ($current -and $current.LastArrival -gt $baseline.LastArrival) {
+            Write-Host "$Port reappeared; continuing with $Operation."
+            return
+        }
+        Start-Sleep -Milliseconds $resetPollMilliseconds
+    }
+    throw "Timed out waiting for a new $Port USB arrival before $Operation; flashrom was not started. Use -ManualReset if JP1 does not reconnect USB."
 }
 
 function Assert-FlashromReport {
@@ -105,10 +202,11 @@ function Invoke-FlashromStep {
     param(
         [Parameter(Mandatory = $true)][string]$Operation,
         [Parameter(Mandatory = $true)][string[]]$Arguments,
-        [Parameter(Mandatory = $true)][string]$LogPath
+        [Parameter(Mandatory = $true)][string]$LogPath,
+        [string]$PortInstanceId
     )
 
-    Wait-ForTargetReset -Operation $Operation
+    Wait-ForTargetReset -Operation $Operation -PortInstanceId $PortInstanceId
     $lines = New-Object 'System.Collections.Generic.List[string]'
     $oldPreference = $ErrorActionPreference
     try {
@@ -173,6 +271,12 @@ function Invoke-FirstDump {
     <# Probe, read three complete images, and require identical hashes and bytes. #>
     $resolvedFlashrom = Get-Command -Name $FlashromPath -ErrorAction Stop
     $privateRoot = Assert-PrivatePath -Path $OutputRoot -Purpose 'OutputRoot'
+    $portBinding = $null
+    if (-not $ManualReset) {
+        $portBinding = Get-PortSnapshot -PortName $Port
+        if (-not $portBinding) { throw "$Port is not present; automatic reset detection cannot start." }
+    }
+    $portInstanceId = if ($portBinding) { $portBinding.InstanceId } else { $null }
     $referencePath = $null
     if ($ReferenceDump) {
         $referencePath = Assert-PrivatePath -Path $ReferenceDump -Purpose 'ReferenceDump'
@@ -190,13 +294,13 @@ function Invoke-FirstDump {
     Write-Host "flashrom: $($resolvedFlashrom.Source); port: $Port; requested SPI clock: $SpiSpeed"
 
     $baseArguments = @('-p', $programmer, '-c', $chipName)
-    Invoke-FlashromStep -Operation 'chip detection' -Arguments $baseArguments -LogPath (Join-Path $sessionPath 'probe.log')
+    Invoke-FlashromStep -Operation 'chip detection' -Arguments $baseArguments -LogPath (Join-Path $sessionPath 'probe.log') -PortInstanceId $portInstanceId
 
     $reads = @()
     for ($number = 1; $number -le 3; $number++) {
         $readPath = Join-Path $sessionPath "read-$number.bin"
         $logPath = Join-Path $sessionPath "read-$number.log"
-        Invoke-FlashromStep -Operation "read $number" -Arguments ($baseArguments + @('-r', $readPath)) -LogPath $logPath
+        Invoke-FlashromStep -Operation "read $number" -Arguments ($baseArguments + @('-r', $readPath)) -LogPath $logPath -PortInstanceId $portInstanceId
         if (-not (Test-Path -LiteralPath $readPath)) {
             throw "Read $number created no image. See $logPath"
         }

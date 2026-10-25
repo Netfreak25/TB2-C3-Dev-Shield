@@ -42,10 +42,10 @@ Complete the [electrical and reset checks](../../docs/first-dump.md) before open
 .\tools\first_dump.ps1 -Port COM17
 ```
 
-It requests 500 kHz by default, checks the `tb2-c3-serprog` name and expected 16 MiB chip, and pauses before detection and each of three full reads. At each pause, measure the target power cycle as described in the [first-dump procedure](../../docs/first-dump.md), then press any key once to continue without Enter; Ctrl+C aborts. The runner compares read sizes, hashes and bytes. Dumps go to a private directory outside Git; `-ReferenceDump` optionally compares a known-good image of the same unchanged flash. It never writes or erases the target. The offline regression test uses a fake programmer and does not open a serial port:
+It requests 500 kHz by default and checks the `tb2-c3-serprog` name and expected 16 MiB chip. Before detection and each of three full reads, it waits for a new USB arrival of the selected COM port, then proceeds automatically. The wait is 180 seconds by default; adjust it with `-ResetTimeoutSeconds 300`. If cycling JP1 does not re-enumerate USB, add `-ManualReset` to continue with one keypress after each measured power cycle. Follow the [electrical procedure](../../docs/first-dump.md) in either mode: USB reappearance does not prove that target VCC fell. Ctrl+C aborts. The runner compares read sizes, hashes and bytes. Dumps go to a private directory outside Git; `-ReferenceDump` optionally compares a known-good image of the same unchanged flash. It never writes or erases the target. The offline regression test uses a fake programmer and does not open a serial port:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\tests\first_dump.tests.ps1
 ```
 
-Keep all target dumps and device-specific logs outside this public repository. v0.2 has **not** been flashed to a physical SuperMini or tested on a target chip.
+Keep all target dumps and device-specific logs outside this public repository. A complete, verified read from the target chip is still pending.
