@@ -1,6 +1,6 @@
 # First target-flash dump — C3 Shield
 
-This is the **no erase or programming** acceptance sequence for an assembled Shield and a 16 MiB W25Q128 flash. During connection checks, TB2 Dungeon briefly sends WREN and WRDI to test the flash's volatile write-enable latch; it does not erase or program flash data. The firmware has been flashed to an ESP32-C3, but the Shield-to-target connection has not yet passed a physical test. Never save a Toniebox dump in this public repository.
+This is a read-only acceptance sequence for an assembled Shield and a 16 MiB W25Q128 flash. Use the ESP32-C3 serprog firmware with **PowerShell and flashrom**. The firmware may be installed and its serial port visible, but the Shield-to-target connection remains an **unverified build candidate** until the physical checks and reads succeed. Keep target dumps outside this public repository.
 
 ## 1. Inspect with power off
 
@@ -14,12 +14,69 @@ This is the **no erase or programming** acceptance sequence for an assembled Shi
 2. Reopen JP1 and connect the clip while transfers are stopped. Check the target-chip VCC and GND. Then close JP1 and measure approximately 3.3 V at the chip under load.
 3. **A reset is proven only if chip VCC actually falls low enough when power is removed.** JP1 interrupts only the direct supply; SPI pins may backfeed the chip. If VCC does not fall, stop and resolve this before claiming a reset. Disconnect USB before changing the clip or wiring; reconnect and repeat the electrical checks afterward.
 
-## 3. Detect, then create the first backup
+## 3. Detect and take three independent reads
 
-1. Open TB2 Dungeon in Chrome or Edge over HTTPS or localhost. Select **ESP32-C3**, its serial port, **500 kHz SPI**, and **Read Only**. The displayed baud setting does not determine the speed of native USB Serial/JTAG.
-2. **Pause before chip detection:** click **Connect** and select the ESP32-C3 serial port. When the reset dialog appears, power-cycle the target flash as in section 2. Confirm only after checking its supply; JEDEC detection follows immediately. If the browser build has no reset dialog, perform this pause and power check yourself before clicking Connect. Require `EF 40 18` (W25Q128), a stable identity and matching repeated 4 KiB reads. A visible serial port alone is insufficient.
-3. **Pause again before the dump:** click **Create Backup**. When its reset dialog appears, power-cycle the flash and confirm it. If the serial connection was interrupted, cancel, reconnect and detect the chip again. The browser rechecks JEDEC and repeated reads, and compares the flash unique ID when available.
-4. After confirmation, the backup continues automatically. It reads the complete **16,777,216 bytes twice**, hashes both passes and accepts a backup only if they match. Do not remove the clip or change power while a read is running. On success, click **Download Backup** and save it outside the Git checkout. Check its exact size and record its SHA-256 privately.
-5. Compare this backup with a known-good dump of **the same unchanged flash**, if available. A match between two reads proves repeatability of this connection; it does not by itself prove that the target contents are correct.
+Open PowerShell in a private directory outside any Git checkout with flashrom available on `PATH`. Replace `COM17` with the port identified immediately before the session. The `115200` part is the serprog serial-port setting; `spispeed=500k` requests a **500 kHz SPI clock**. flashrom can warn yet continue if the programmer rejects a speed change, so the example checks its verbose report of the [actual clock](https://github.com/flashrom/flashrom/blob/main/programmers/serprog.c). Keep the target battery and target USB disconnected.
 
-If detection, voltage or repeated reads fail, stop, disconnect and inspect the physical connection. Try **250 kHz** only after checking the wiring and power. Do not write or erase during this first acceptance. A future flash operation needs its **own reset pause and confirmation** immediately before writing; the chip identity and device baseline must then be checked afresh.
+```powershell
+$programmer = 'serprog:dev=COM17:115200,spispeed=500k'
+$chip = 'W25Q128.V'
+```
+
+Before **each** flashrom call below, the function pauses. Open JP1, verify that flash VCC falls, close JP1, verify approximately 3.3 V at the flash, then type `RESET`. Any other response stops the sequence. Leave the ESP32-C3 USB connection in place while power-cycling only the target.
+
+```powershell
+function Invoke-AfterTargetReset {
+    param([string[]]$FlashromArguments)
+
+    $reply = Read-Host 'Power-cycle the flash with JP1, measure VCC, then type RESET'
+    if ($reply -cne 'RESET') { throw 'Target reset not confirmed; flashrom was not started.' }
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = @(& flashrom -V @FlashromArguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    $output | ForEach-Object { Write-Host $_ }
+    if ($exitCode -ne 0) { throw "flashrom failed with exit code $exitCode" }
+    $report = $output -join "`n"
+    $frequency = [regex]::Match($report, 'Requested to set SPI clock frequency to 500000 Hz\. It was actually set to (\d+) Hz')
+    if (-not $frequency.Success -or [int]$frequency.Groups[1].Value -le 0 -or
+        [int]$frequency.Groups[1].Value -gt 500000) {
+        throw 'The requested 500 kHz SPI clock was not confirmed; stop.'
+    }
+    $readIndex = [Array]::IndexOf($FlashromArguments, '-r')
+    if ($readIndex -ge 0 -and (Get-Item -LiteralPath $FlashromArguments[$readIndex + 1]).Length -ne 16MB) {
+        throw 'Unexpected read size; expected exactly 16,777,216 bytes.'
+    }
+}
+
+Invoke-AfterTargetReset -FlashromArguments @('-p', $programmer, '-c', $chip)
+Invoke-AfterTargetReset -FlashromArguments @('-p', $programmer, '-c', $chip, '-r', '.\read-1.bin')
+Invoke-AfterTargetReset -FlashromArguments @('-p', $programmer, '-c', $chip, '-r', '.\read-2.bin')
+Invoke-AfterTargetReset -FlashromArguments @('-p', $programmer, '-c', $chip, '-r', '.\read-3.bin')
+```
+
+After detection, require the expected 16 MiB Winbond chip. After each read, stop on any flashrom error or unexpected size. Each read must contain exactly **16,777,216 bytes**. Compare all three SHA-256 hashes and also compare the files byte for byte:
+
+```powershell
+$reads = 'read-1.bin', 'read-2.bin', 'read-3.bin'
+$reads | ForEach-Object {
+    $file = Get-Item -LiteralPath $_
+    [pscustomobject]@{
+        File = $file.Name
+        Bytes = $file.Length
+        SHA256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+    }
+}
+fc.exe /b .\read-1.bin .\read-2.bin
+if ($LASTEXITCODE -ne 0) { throw 'Read 1 and read 2 differ.' }
+fc.exe /b .\read-1.bin .\read-3.bin
+if ($LASTEXITCODE -ne 0) { throw 'Read 1 and read 3 differ.' }
+```
+
+All sizes and hashes must agree, and both `fc.exe` comparisons must report no differences. Compare with a known-good dump of the **same unchanged flash**, if available. Matching reads prove repeatability of this connection, not that the contents are independently correct. Preserve the original backup privately.
+
+If detection, voltage or repeated reads fail, stop and inspect the physical connection. Consider **250 kHz** only after checking wiring and power. Do not write or erase during first acceptance. A future flash operation requires its own reset pause immediately before writing, renewed chip detection and a separate verified backup.
