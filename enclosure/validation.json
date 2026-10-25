@@ -1,13 +1,13 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "5af06b8cb9bd348de630cbc7e1a122543d611d14e54133cabae11e46663bf46b",
+  "source_sha256": "00b3f1d109742a6c2bf70d8275b393d74cd28eac32987e697ff6334d07851a45",
   "parts": {
     "base": {
-      "triangles": 4288,
+      "triangles": 4180,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 5549.707512,
+      "volume_mm3": 5450.132301,
       "bounds_mm": [
         [
           -7.0,
@@ -22,14 +22,14 @@
           11.2
         ]
       ],
-      "sha256": "1a64d8ec2b4434dca974a24cd91a947e35fbaf05d267c91af137d67a535b849b",
+      "sha256": "df10ffa0df6a29eb0925489d13b51f70f1736cff455805acee4331c68e7b36af",
       "slicer_manifold": true
     },
     "lid": {
-      "triangles": 2156,
+      "triangles": 2140,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 1822.152015,
+      "volume_mm3": 1794.13115,
       "bounds_mm": [
         [
           -7.0,
@@ -44,7 +44,7 @@
           6.4
         ]
       ],
-      "sha256": "9130848dee4cbddc422f54772b2a027965af8d7f8c203b029eeccee7fb56d3bc",
+      "sha256": "e2776c4512bc56f5531cd32da44c01b61c68e59eaa87ba133f8a93e3048d7f51",
       "slicer_manifold": true
     }
   },
@@ -70,10 +70,6 @@
       "planar_contact_only": false
     },
     "lid_path": {
-      "volume_mm3": 0,
-      "planar_contact_only": false
-    },
-    "module_path": {
       "volume_mm3": 0,
       "planar_contact_only": false
     },
@@ -106,9 +102,9 @@
   },
   "usb_entry": {
     "pcb_source": "hardware/design.json",
-    "socket_center_x_mm": 11.599999999999998,
-    "clear_entry_width_mm": 14.0,
-    "base_relief_floor_mm": 9.0,
+    "module_center_x_mm": 11.599999999999998,
+    "clear_entry_width_mm": 16.0,
+    "base_relief_floor_mm": 5.8,
     "continuous_shoulders": true
   },
   "led_membrane": {

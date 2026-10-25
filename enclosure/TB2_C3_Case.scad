@@ -1,4 +1,4 @@
-/* TB2 C3 Dev Shield flat dock, Rev. 0.5. Units: mm.
+/* TB2 C3 Dev Shield flat dock, Rev. 0.6. Units: mm.
  * Construction coordinates follow the PCB drawing: USB edge y=0, +Y down.
  * Outputs convert once to Cartesian +Y up; PCB lower face stays at pcb_z.
  * Hardware envelopes and physical fit remain unverified.
@@ -6,7 +6,7 @@
  */
 
 /* [Output] */
-part = "assembly"; // [assembly,exploded,section,led_section,base,lid,layout,led_membrane_probe,collision_case,collision_hardware,collision_fasteners,collision_usb,collision_cable,collision_lid_path,collision_module_path,collision_light_guide_tolerance]
+part = "assembly"; // [assembly,exploded,section,led_section,base,lid,layout,led_membrane_probe,collision_case,collision_hardware,collision_fasteners,collision_usb,collision_cable,collision_lid_path,collision_light_guide_tolerance]
 show_hardware = true;
 show_labels = true;
 explode = 14;
@@ -40,16 +40,17 @@ letter_gap = 0.6;
 star_w = 2.8;
 star_h = 3.2;
 star_tip = 0.8;
+front_label_base_z = 1.9;
+front_label_height_scale = 0.75;
 
 /* [ESP32 stack - measure your module] */
-socket_h = 8.5;
-male_spacer_h = 2.5;
+header_spacer_h = 2.5;
 module_pcb_t = 1.6;
 usb_shell_h = 3.2;
-usb_plug_w = 14;
-usb_plug_h = 7;
-usb_notch_side_clearance = 1.0;
-usb_notch_floor_z = 9.0;
+usb_plug_w = 16;
+usb_plug_h = 9;
+usb_notch_side_clearance = 2.0;
+usb_notch_floor_z = 5.8;
 usb_notch_corner_r = 1.0;
 
 /* [M2 hardware] */
@@ -74,7 +75,7 @@ pcb_top = pcb_z + pcb_t;
 module_x = 2.6;
 module_w = 18;
 module_center = module_x + module_w/2;
-module_z = pcb_top + socket_h + male_spacer_h;
+module_z = pcb_top + header_spacer_h;
 module_top = module_z + module_pcb_t;
 usb_center_z = module_top + usb_shell_h/2;
 case_top = pcb_top + 6.6;
@@ -112,7 +113,8 @@ white = [0.94,0.95,0.94];
 assert(tip_floor>floor_t, "Screw tip relief would breach the floor");
 assert(insert_bottom>screw_tip, "Screws must reach the full insert thread");
 assert(boss_top>pcb_top && boss_top<seam_z, "Invalid boss / lid bearing heights");
-assert(module_z>case_top, "This dock requires socket-mounted ESP32 hardware");
+assert(module_z>pcb_top && module_top<case_top,
+       "This dock expects a directly soldered module on one header spacer");
 assert(service_open_min.x-module_open_max.x>=2*skirt_t, "Aperture bridge too narrow");
 assert(pcb_bearing<0.54, "Left support would overlap an outer ESP32 pad");
 assert(led_membrane_t>0 && led_membrane_t<roof_t, "Invalid single-layer LED skin");
@@ -126,7 +128,9 @@ assert(light_flat_x>33.35+0.15+pcb_xy_clearance,
        "Light channel would touch the maximum header envelope");
 assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
-assert(usb_notch_floor_z>(case_top+letter_h)/2+0.2 && usb_notch_floor_z<seam_z,
+assert(front_label_base_z>floor_t+0.2
+       && usb_notch_floor_z>front_label_base_z+letter_h*front_label_height_scale+0.4
+       && usb_notch_floor_z<usb_center_z-usb_plug_h/2,
        "USB relief must leave the side lettering and cross the lid seam");
 
 module box(a,b) { translate(a) cube(b-a); }
@@ -243,10 +247,12 @@ module magic_band(length,count,stars) {
         if(i<stars) translate([word_w+gap+star_w/2,letter_h/2]) magic_star();
     }
 }
-module wall_label(position,angle,length,count,stars) {
-    translate([position.x,position.y,(case_top-letter_h)/2])
+module wall_label(position,angle,length,count,stars,
+                  base_z=(case_top-letter_h)/2,height_scale=1) {
+    translate([position.x,position.y,base_z])
         rotate([0,0,angle]) rotate([90,0,0]) translate([0,0,-mark_depth])
-            linear_extrude(mark_depth+eps) magic_band(length,count,stars);
+            linear_extrude(mark_depth+eps)
+                scale([1,height_scale]) magic_band(length,count,stars);
 }
 module perimeter_labels() {
     x0=case_min.x; x1=x0+case_size.x; y0=case_min.y; y1=y0+case_size.y;
@@ -254,7 +260,8 @@ module perimeter_labels() {
     // Glyphs are constructed in Cartesian coordinates. Apply the inverse
     // conversion here so the output transform does not mirror the lettering.
     pcb_to_world() {
-        wall_label([x0+corner_r,y0],0,case_size.x-2*corner_r,2,2);
+        wall_label([x0+corner_r,y0],0,case_size.x-2*corner_r,2,2,
+                   front_label_base_z,front_label_height_scale);
         wall_label([x1,y0+corner_r],90,case_size.y-2*corner_r,1,1);
         wall_label([x1-corner_r,y1],180,case_size.x-2*corner_r,2,2);
         wall_label([x0,y1-corner_r],270,case_size.y-2*corner_r,1,0);
@@ -307,7 +314,7 @@ module lid() {
 // XY datums from shield Rev. 0.1. Heights are nominal component envelopes.
 module module_reference() {
     color([0.12,0.12,0.14]) for(x=[3.98,19.22])
-        box([x-1.25,1.1,pcb_top+socket_h],[x+1.25,21.42,module_z]);
+        box([x-1.25,1.1,pcb_top],[x+1.25,21.42,module_z]);
     color([0.12,0.14,0.19]) box([module_x,0,module_z],[module_x+module_w,pcb_d,module_top]);
     color([0.6,0.64,0.68]) box([module_center-4.5,-1,module_top],
         [module_center+4.5,6,module_top+usb_shell_h]);
@@ -332,11 +339,9 @@ module light_neighbours_envelope() {
     box([24.2,4.2,pcb_top],[33.5,22.42,pcb_top+8.9]);
     box([34.95,13.08,pcb_top],[37.05,16.78,pcb_top+2.1]);
 }
-module shield_reference(with_module=true) {
+module shield_reference() {
     color([0.08,0.37,0.23]) box([0,0,pcb_z],[pcb_w,pcb_d,pcb_top]);
-    color([0.12,0.12,0.14]) for(x=[3.98,19.22])
-        box([x-1.25,0.85,pcb_top],[x+1.25,21.67,pcb_top+socket_h]);
-    if(with_module) module_reference();
+    module_reference();
     color([0.08,0.08,0.10]) difference() {
         box([24.35,4.4,pcb_top],[33.35,22.22,pcb_top+8.75]);
         box([25.35,5.4,pcb_top+2],[32.35,21.22,pcb_top+8.8]);
@@ -388,8 +393,7 @@ module display(lift=0) {
     color(white) base();
     color(white) translate([0,0,lift*2]) lid();
     if(show_hardware) {
-        translate([0,0,lift]) shield_reference(false);
-        translate([0,0,lift*3]) module_reference();
+        translate([0,0,lift]) shield_reference();
         translate([0,0,lift*2.4]) fasteners();
     }
 }
@@ -429,11 +433,9 @@ else if(part=="collision_usb") intersection() { case_assembly(); usb_plug_refere
 else if(part=="collision_cable") intersection() { case_assembly(); cable_reference(); }
 else if(part=="collision_lid_path") for(dz=[0.2,0.5,1,2,4,8,15,25])
     intersection() {
-        union() { base(); shield_reference(false); }
+        union() { base(); shield_reference(); }
         translate([0,0,dz]) lid();
     }
-else if(part=="collision_module_path") for(dz=[0,0.2,0.5,1,2,4,8,15,25])
-    intersection() { case_assembly(); translate([0,0,dz]) module_reference(); }
 else if(part=="collision_light_guide_tolerance") intersection() {
     lid();
     union() for(dx=[-pcb_xy_clearance,pcb_xy_clearance],

@@ -1,16 +1,12 @@
 # TB2 C3 flat dock
 
-A compact, two-piece dock for the **socket-mounted TB2 C3 Dev Shield Rev. 0.1**. The white rounded base protects the shield underside; the white flat lid retains its edges. The ESP32 remains exposed, leaving USB-C, BOOT and RESET accessible. The shrouded cable connector and power jumper are accessible from above, with ACT hidden behind a continuous, single-layer white skin. Six **MAGIC** words and five four-point stars decorate all four sidewalls, using the geometric lettering of the original enclosure.
+A compact, two-piece dock for a **directly soldered ESP32-C3 SuperMini on the TB2 C3 Dev Shield Rev. 0.1**. The module sits one standard pinheader spacer above the shield, modeled here as 2.5 mm. The white rounded base protects the shield underside; the white flat lid retains its edges. USB-C, BOOT and RESET are accessible through the module opening. The shrouded cable connector and power jumper are accessible from above, with ACT hidden behind a continuous, single-layer white skin. Six **MAGIC** words and five four-point stars decorate all four sidewalls, using the geometric lettering of the original enclosure.
 
-**Enclosure Rev. 0.5 — unverified build candidate.** The meshes and component envelopes have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
+**Enclosure Rev. 0.6 — unverified build candidate.** The meshes and component envelopes have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
 
 ![Assembled flat dock](assembly.png)
 
-**Rev. 0.3 corrects the PCB-to-CAD orientation. Replace earlier enclosure exports before printing; their layout was reflected relative to the PCB.**
-
-Rev. 0.4 adds an integral tube around ACT beneath its 0.2-mm white cover. Use the Rev. 0.4 base and lid together: the PCB locating clearance is reduced to keep the tube aligned with the LED and clear of the connector.
-
-Rev. 0.5 adds a rounded, open-top USB relief through the front of both printed parts. Use the Rev. 0.5 base and lid together.
+**Use the Rev. 0.6 base and lid together.** This enclosure fits a directly soldered module with one pinheader spacer. The ACT light channel and USB relief are integral to the lid and base geometry.
 
 ## Orientation
 
@@ -36,26 +32,26 @@ Viewed from above with USB-C at the top: the ESP32 is on the left, POWER is at t
 | Item | Nominal value |
 |---|---|
 | Printed enclosure, assembled | **53 × 30.52 × 12.8 mm** |
-| Assembly height including the ESP32 USB shell | About **22 mm**, dependent on the module and headers |
+| USB shell top / assembled height including screw heads | About **13.5 / 14.8 mm**, dependent on the module and headers |
 | Shield PCB | 39 × 22.52 × 1.6 mm |
 | Floor / walls / lid | 1.6 / 1.8 / 1.6 mm |
 | White skin over ACT | **0.2 mm**, one layer with a 0.2 mm first-layer height; nominal 1.0 mm clearance above the seated LED |
 | ACT tube | 3.8 mm entry bore, tapered to 3.2 mm beneath the skin; projects 2.2 mm below the lid roof |
-| USB front relief | 16 mm wide at its opening; rounded corners and a 9 mm high remaining base wall |
+| USB front relief | 20 mm wide at its opening; rounded corners and a 5.8 mm high remaining base wall |
 | PCB underside above the inside floor | 3 mm; trim soldered leads to no more than 2 mm below the PCB |
 | PCB lateral clearance / vertical retention gap | 0.15 mm per side / 0.2 mm nominal |
-| ESP32 socket body / male header spacer | 8.5 / 2.5 mm nominal |
+| ESP32 pinheader spacer between PCBs | 2.5 mm nominal; no tall sockets in this enclosure |
 | Fasteners | **2 × M2×8 cylinder-head screws**, nominal head Ø3.8 × 2 mm |
 | Inserts | **2 × M2 heat-set inserts, 3 mm long, nominal Ø3.2 mm outside** |
 | Insert seats | Ø3.2 mm, with an entry chamfer; insert top 0.2 mm below its boss |
 
 The screws sit outside the PCB. Four small edge supports and matching lid retainers locate it without drilling the board. The screw load is carried by plastic bosses, not by the PCB. The supplied geometry gives 3 mm of insert thread engagement and 0.8 mm clearance below the screw tip.
 
-The dock is designed for the socket-mounted module. **Direct-solder mounting has not been fitted to this enclosure.** Different socket heights, male header spacers, LEDs, cable plugs or insert profiles can require parameter changes. A nominal insert diameter does not guarantee the same heat-fit behaviour across brands or printers.
+The dock is designed for a module **soldered directly to the shield through normal male pinheaders**, leaving one plastic pinheader spacer between the two PCBs. A version with tall female sockets needs a different enclosure. Different header spacers, modules, LEDs, cable plugs or insert profiles can require parameter changes. A nominal insert diameter does not guarantee the same heat-fit behaviour across brands or printers.
 
 ## USB-C access
 
-The socket-mounted ESP32 places its USB-C connector above the case rim. The front wall also has a U-shaped opening aligned with the module, through both the base and lid. It leaves the wall lettering below intact and makes the cable approach visible and less restrictive for a larger plug housing. The modeled plug is 14 mm wide and 7 mm high; its underside is 4.1 mm above the original case rim. Check the actual module stack height and cable housing before relying on that clearance.
+With one 2.5 mm pinheader spacer, the ESP32's modeled USB-C shell begins below the 12.8 mm case rim. The U-shaped opening therefore passes through the base and lid and continues down to 5.8 mm above the underside. The modeled cable housing is **16 mm wide and 9 mm high**; its underside is at 7.4 mm. That leaves **2 mm per side and 1.6 mm below the modeled housing** at the front opening. The front `MAGIC` lettering is shortened vertically and placed below the opening. Measure your actual module stack and cable housing before relying on these clearances.
 
 ![Front view of USB-C and the open wall relief](usb_front.png)
 
@@ -80,13 +76,13 @@ Print one base and one lid. The supplied STLs are separate parts in their intend
 
 ## Assemble
 
-1. Check that the shield and actual connector bodies match the dimensions above. Remove the ESP32, cable and power-jumper shunt; keep USB unplugged.
+1. Check that the shield, soldered ESP32 and actual connector bodies match the dimensions above. Remove the cable and power-jumper shunt; keep USB unplugged.
 2. Install the two heat-set inserts in the **empty base**, before adding electronics. Set their top faces 0.2 mm below the boss surfaces. Let the base cool and check screw engagement.
 3. Inspect the shield solder joints. Trim projecting leads to at most 2 mm below the PCB and remove loose clippings.
-4. Place the shield on the four edge supports. Orient the shield using its own USB arrow: the module sockets are on the left and the cable connector on the right when looking down with USB at the top. The repeated `MAGIC` decoration is not an orientation mark.
-5. Lower the lid vertically. Its large opening surrounds the module sockets; its narrow opening surrounds the cable connector and jumper. The tube on the lid underside surrounds ACT; check that it clears the LED and J1. Its outer skin is closed; do not drill or puncture it. Do not force it onto a misplaced component.
+4. Place the shield with its **already soldered module** on the four edge supports. Orient the shield using its own USB arrow: the module is on the left and the cable connector on the right when looking down with USB at the top. The repeated `MAGIC` decoration is not an orientation mark.
+5. Lower the lid vertically around the attached module. Its large opening surrounds the module; its narrow opening surrounds the cable connector and jumper. The tube on the lid underside surrounds ACT; check that it clears the LED and J1. Its outer skin is closed; do not drill or puncture it. Do not force it onto a misplaced component.
 6. Fit the two M2×8 screws and tighten gently until the lid seats. Its retainers should leave the designed small PCB clearance rather than bow the board.
-7. Insert the ESP32 from above, observing the shield's USB arrow. Add your own jumper shunt and cable only after the normal electrical checks in the [hardware guide](../docs/hardware.md#first-use-checks).
+7. Add your own jumper shunt and cable only after the normal electrical checks in the [hardware guide](../docs/hardware.md#first-use-checks).
 
 Check USB plug clearance through the front relief, access to both ESP32 buttons, cable insertion/removal and jumper removal with the cable fitted. The exposed ESP32 and open connector apertures are intentional; the dock is not sealed.
 
@@ -94,7 +90,7 @@ Check USB plug clearance through the front relief, access to both ESP32 buttons,
 
 ## Modify and validate
 
-Open `TB2_C3_Case.scad` in OpenSCAD. Select `assembly`, `exploded`, `section`, `led_section`, `layout`, `base` or `lid` with the `part` parameter. The `base` and `lid` outputs export only the selected printable part. Fit, light-channel, socket-stack and fastener parameters are grouped near the top of the source.
+Open `TB2_C3_Case.scad` in OpenSCAD. Select `assembly`, `exploded`, `section`, `led_section`, `layout`, `base` or `lid` with the `part` parameter. The `base` and `lid` outputs export only the selected printable part. Fit, light-channel, header-spacer and fastener parameters are grouped near the top of the source.
 
 With Python 3, OpenSCAD and PrusaSlicer installed, run from the repository root:
 
@@ -104,11 +100,11 @@ python enclosure/tools/validate.py --preview-only
 python -m unittest discover -s enclosure/tools -p "test_*.py"
 ```
 
-If needed, set `OPENSCAD` and `PRUSASLICER` to their executable paths. The checker exports both STLs, checks closed edges and connected components, and asks PrusaSlicer to check each mesh. It also checks nominal solid intersections for the enclosure, hardware, fasteners, USB and cable envelopes, plus sampled vertical lid and module insertion paths. A separate solid probe verifies that the ACT cover is present and exactly 0.2 mm thick. The lid is checked with the ESP32 removed, as in the assembly sequence.
+If needed, set `OPENSCAD` and `PRUSASLICER` to their executable paths. The checker exports both STLs, checks closed edges and connected components, and asks PrusaSlicer to check each mesh. It also checks nominal solid intersections for the enclosure, hardware, fasteners, USB and cable envelopes, plus the lid path over the already attached module. A separate solid probe verifies that the ACT cover is present and exactly 0.2 mm thick.
 
 A separate orientation check reads the released `hardware/design.json` and probes the actual delivered lid STL at D1 and all socket/connector pads. Its regression test deliberately reflects the mesh and requires rejection. This check is independent of the simplified hardware reference used for collision checks.
 
-The USB check reads the same independent PCB layout to locate the socket center. It probes the exported base and lid across the full 14 mm modeled plug width, confirming the front relief is open while the shoulders on either side remain continuous. The nominal plug sweep is checked for solid interference separately.
+The USB check reads the same independent PCB layout to locate the module center. It probes the exported base and lid across the full 16 mm modeled cable width, confirming the front relief is open while the shoulders on either side remain continuous. The modeled 16 × 9 mm cable housing is swept toward the port and checked for solid interference separately.
 
 The tube check probes the delivered STL at 72 positions around D1, requiring a continuous wall that extends below the roof. Its negative test rejects a flat roof without the tube. A separate solid-intersection check covers the LED, J1 and R2 envelopes at the extremes of the modeled PCB movement.
 
@@ -118,13 +114,13 @@ Shared, zero-thickness seating planes are reported separately from solid interfe
 
 The LED tube leaves a continuous white outer surface with no separate circular insert. Light transmission and visibility through the white PLA depend on pigment, extrusion and the actual LED; they remain untested.
 
-The source uses the shield's [released layout dimensions](../hardware/design.json). Component references are the [Würth 61300811821 sockets](https://www.we-online.com/components/products/datasheet/61300811821.pdf), [Würth 61200821621 shrouded header](https://www.we-online.com/components/products/datasheet/61200821621.pdf), [Kingbright WP710A10LID LED](https://www.kingbrightusa.com/images/catalog/SPEC/WP710A10LID.pdf) and [ESP32-C3 SuperMini module](https://github.com/NologoTech/ESP32C3-Supermini). The male spacer, module thickness, solder tails and mating cable envelopes are nominal assumptions; measure the actual parts before relying on the fit.
+The source uses the shield's [released layout dimensions](../hardware/design.json). Component references are the [Würth 61200821621 shrouded header](https://www.we-online.com/components/products/datasheet/61200821621.pdf), [Kingbright WP710A10LID LED](https://www.kingbrightusa.com/images/catalog/SPEC/WP710A10LID.pdf) and [ESP32-C3 SuperMini module](https://github.com/NologoTech/ESP32C3-Supermini). The male header spacer, module thickness, solder tails and mating cable envelope are nominal assumptions; measure the actual parts before relying on the fit.
 
 ### Still to verify physically
 
 - Print shrinkage, insert seating and screw tightening.
-- PCB support and retention, socket/module stack height and solder clearance.
+- PCB support and retention, pinheader spacer height and solder clearance.
 - USB, button, cable and jumper access; ACT visibility through the white skin.
-- Strength during repeated module/cable insertion and removal.
+- Strength during repeated cable insertion and removal.
 
 The enclosure does not change the shield's electrical validation status. The source and accompanying files use the repository's [CERN-OHL-P-2.0 licence](../LICENSE).

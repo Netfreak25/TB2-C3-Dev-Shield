@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "TB2_C3_Case.scad"
 WORK = ROOT / ".build"
 PARTS = ("base", "lid")
-COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path", "module_path",
+COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path",
               "light_guide_tolerance")
 ZERO_VOLUME_MM3 = 0.0001
 GEOMETRY_TOLERANCE_MM = 0.00001
@@ -23,9 +23,9 @@ LIGHT_RING_RADIUS_MM = 2.2
 LIGHT_RING_SAMPLES = 72
 LIGHT_TUBE_PRINT_HEIGHT_MM = 3.8
 USB_FRONT_SAMPLE_MM = 3.0
-USB_PLUG_HALF_WIDTH_MM = 7.0
-USB_SHOULDER_OFFSET_MM = 8.5
-USB_ENTRY_FLOOR_MM = 9.0
+USB_PLUG_HALF_WIDTH_MM = 8.0
+USB_SHOULDER_OFFSET_MM = 10.5
+USB_ENTRY_FLOOR_MM = 5.8
 USB_BASE_SEAM_MM = 11.2
 USB_LID_ROOF_MM = 1.6
 
@@ -100,12 +100,12 @@ def check_light_channel(lid_path, design_path):
 def check_usb_entry(base_path, lid_path, design_path):
     """Check the delivered meshes leave an open USB-facing wall relief.
 
-    The connector center comes from the independent PCB socket-pad layout.
+    The module center comes from the independent PCB header footprint.
     The base and print-oriented lid have opposite Y transforms.
     """
     design = json.loads(design_path.read_text(encoding="utf-8"))
-    sockets = [pad for pad in design["pads"] if pad["ref"] in ("JL", "JR")]
-    center_x = (min(pad["x"] for pad in sockets) + max(pad["x"] for pad in sockets)) / 2
+    module_pads = [pad for pad in design["pads"] if pad["ref"] in ("JL", "JR")]
+    center_x = (min(pad["x"] for pad in module_pads) + max(pad["x"] for pad in module_pads)) / 2
     base_y = design["board_mm"][1] + USB_FRONT_SAMPLE_MM
     lid_y = -USB_FRONT_SAMPLE_MM
     for offset in (-USB_PLUG_HALF_WIDTH_MM, 0, USB_PLUG_HALF_WIDTH_MM):
@@ -122,7 +122,7 @@ def check_usb_entry(base_path, lid_path, design_path):
         if (len(base) != 2 or abs(base[1]-USB_BASE_SEAM_MM) > GEOMETRY_TOLERANCE_MM
                 or len(lid) != 2 or abs(lid[1]-USB_LID_ROOF_MM) > GEOMETRY_TOLERANCE_MM):
             raise RuntimeError(f"USB-side shoulders are missing at x={x}: base={base}, lid={lid}")
-    return {"pcb_source": "hardware/design.json", "socket_center_x_mm": center_x,
+    return {"pcb_source": "hardware/design.json", "module_center_x_mm": center_x,
             "clear_entry_width_mm": 2*USB_PLUG_HALF_WIDTH_MM,
             "base_relief_floor_mm": USB_ENTRY_FLOOR_MM,
             "continuous_shoulders": True}

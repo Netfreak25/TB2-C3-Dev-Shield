@@ -11,9 +11,10 @@ The nominal SuperMini outline is 18 × 22.52 mm. The shield is 39 × 22.52 mm. T
 Two mounting options share the PCB:
 
 - **Socket mounted:** populate the two inner 1×8 rows with female sockets, opening upward. The module's male header pins point downward. Leave all 16 outer duplicate pads empty.
-- **Direct soldered:** leave the sockets out and use the exposed outer lands with a mechanically compatible castellated SuperMini. Actual module edge contacts, underside clearance and soldering access require verification.
+- **Direct pinheader mounting:** omit the female sockets and solder the module's two normal 1×8 male pinheaders directly through the matching shield rows. The plastic header spacer stays between the two PCBs; measure its height before choosing an enclosure.
+- **Castellated edge mounting:** leave the sockets out and use the exposed outer lands with a mechanically compatible castellated SuperMini. Actual module edge contacts, underside clearance and soldering access require verification.
 
-Factory assembly uses the socket-mounted option. Do not install a directly soldered module over fitted sockets. The shield's 32 module holes are **1.10 mm**; this does not describe or alter the holes in the SuperMini itself.
+Factory assembly uses the socket-mounted option. The [printable flat dock](../enclosure/README.md) is fitted to direct pinheader mounting with a nominal 2.5 mm spacer. Do not install a directly soldered module over fitted sockets. The shield's 32 module holes are **1.10 mm**; this does not describe or alter the holes in the SuperMini itself.
 
 ## J1 and SOP8 mapping
 
@@ -61,10 +62,10 @@ The red ACT LED lights while /CS is low. It may flicker or appear steady during 
 
 1. With everything unpowered, check the PCB, module row spacing and component fit. Use the [BOM](../manufacturing/pcbway/BOM.csv) and [assembly PDF](Assembly.pdf).
 2. Fit R1 = 10 kΩ. Fit R2 = 1 kΩ only when installing D1. Form the resistor leads to 7.62 mm spacing without stressing the body.
-3. Align the two female socket rows with a mating fixture or the unpowered module. Tack, check the fit, then finish the socket joints; remove the module before continuing.
+3. For the socket option, align the two female rows with a mating fixture or the unpowered module. Tack, check the fit, finish the socket joints and remove the module. For direct pinheader mounting, leave the sockets out; align the module with its pinheader spacers between the PCBs and solder its pins directly into the shield. Check that the module sits level.
 4. Fit J1 with the notch left and pin 1 toward USB. Fit the two JP1 pins without a shunt or solder bridge between them.
 5. If desired, fit D1 upright: **anode left, cathode right** toward the outer edge. Check the flat-side/cathode marking against the reference datasheet.
-6. Inspect for solder bridges, check the connections below, then insert the SuperMini with USB pointing toward the arrow. Fit your own 2.54 mm shunt only when ready to enable target power.
+6. Inspect for solder bridges and check the connections below. Insert the SuperMini only for the socket option; for direct pinheader mounting it is already attached. USB points toward the arrow in both cases. Fit your own 2.54 mm shunt only when ready to enable target power.
 
 For factory-assembled boards, begin with inspection and continuity checks. The ESP32 and JP1 shunt are supplied separately by the user.
 

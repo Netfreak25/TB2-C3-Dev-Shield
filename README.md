@@ -25,7 +25,7 @@ The same Gerber package serves both ordering options. For hand assembly, order *
 | POWER | JP1 disconnects the target's 3.3 V supply when its shunt is removed |
 | /CS pull-up | R1: 10 kΩ to the target supply, after JP1 |
 | ACT | R2: 1 kΩ and D1: red 3 mm LED, driven by active-low /CS |
-| Alternative mounting | Paired outer solder lands for a matching castellated SuperMini; requires a physical fit check |
+| Alternative mounting | Direct soldering with standard pinheaders through the module rows, or paired outer solder lands for a matching castellated SuperMini; either requires a physical fit check |
 | Marking | Board name, USB arrow and a QR containing the text `Netfreak` on both sides |
 
 ![Rear silkscreen and QR, viewed from underneath](assets/pcb-bottom.png)
@@ -49,7 +49,7 @@ For factory assembly, JP1 includes **the two pins only**: no removable shunt is 
 
 ## Printable flat dock
 
-The optional white [two-piece flat dock](enclosure/README.md), with `MAGIC` lettering on all four sides, an ACT light-guiding tube and a front USB-C relief, protects the shield underside while leaving the ESP32, buttons, cable connector and power jumper accessible. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
+The optional white [two-piece flat dock](enclosure/README.md) fits a SuperMini soldered directly to the shield through standard pinheaders, with one 2.5 mm spacer between the PCBs. It has `MAGIC` lettering on all four sides, an ACT light-guiding tube and a front USB-C relief. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
 
 ![TB2 C3 flat dock](enclosure/assembly.png)
 
