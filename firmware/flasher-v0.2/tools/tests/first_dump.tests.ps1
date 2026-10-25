@@ -41,13 +41,12 @@ if ($readIndex -ge 0) {
 exit 0
 '@ | Set-Content -LiteralPath $fake -Encoding UTF8
 
-$global:ResetPromptCount = 0
-$global:RejectResetAt = 0
-function global:Read-Host {
-    param([string]$Prompt)
-    $global:ResetPromptCount++
-    if ($global:ResetPromptCount -eq $global:RejectResetAt) { return 'CANCEL' }
-    return 'RESET'
+$global:KeyPressCount = 0
+$global:RejectKeyAt = 0
+$testContinueKey = {
+    $global:KeyPressCount++
+    if ($global:KeyPressCount -eq $global:RejectKeyAt) { throw 'Test keypress cancelled.' }
+    return 'x'
 }
 
 function Assert-Equal {
@@ -72,12 +71,12 @@ function Invoke-Scenario {
     New-Item -ItemType Directory -Path $scenarioRoot | Out-Null
     $env:TB2_FAKE_MODE = $Mode
     $env:TB2_FAKE_COUNTER = Join-Path $scenarioRoot 'calls.txt'
-    $global:ResetPromptCount = 0
-    $global:RejectResetAt = $RejectAt
+    $global:KeyPressCount = 0
+    $global:RejectKeyAt = $RejectAt
     $failed = $false
     $failureMessage = ''
     try {
-        $parameters = @{ Port = 'COM17'; SpiSpeed = $Speed; OutputRoot = $scenarioRoot; FlashromPath = $fake }
+        $parameters = @{ Port = 'COM17'; SpiSpeed = $Speed; OutputRoot = $scenarioRoot; FlashromPath = $fake; ContinueKey = $testContinueKey }
         if ($ReferenceDump) { $parameters.ReferenceDump = $ReferenceDump }
         $null = & $runner @parameters 6>&1
     } catch {
@@ -91,12 +90,15 @@ function Invoke-Scenario {
     }
     $actualCalls = if (Test-Path -LiteralPath $env:TB2_FAKE_COUNTER) { [int](Get-Content -LiteralPath $env:TB2_FAKE_COUNTER -Raw) } else { 0 }
     Assert-Equal -Expected $Calls -Actual $actualCalls -Label "$Name flashrom calls"
+    if ($RejectAt) {
+        Assert-Equal -Expected $RejectAt -Actual $global:KeyPressCount -Label "$Name keypress gates"
+    }
     $session = @(Get-ChildItem -LiteralPath $scenarioRoot -Directory)
     Assert-Equal -Expected 1 -Actual $session.Count -Label "$Name session count"
     $logs = @(Get-ChildItem -LiteralPath $session[0].FullName -Filter '*.log')
     Assert-Equal -Expected $Calls -Actual $logs.Count -Label "$Name retained logs"
     if ($Succeeds) {
-        Assert-Equal -Expected 4 -Actual $global:ResetPromptCount -Label "$Name reset prompts"
+        Assert-Equal -Expected 4 -Actual $global:KeyPressCount -Label "$Name keypress gates"
         Assert-Equal -Expected 3 -Actual @(Get-ChildItem -LiteralPath $session[0].FullName -Filter 'read-*.bin').Count -Label "$Name retained reads"
         if (-not (Test-Path -LiteralPath (Join-Path $session[0].FullName 'SHA256SUMS.txt'))) {
             throw "$Name has no checksum manifest."
@@ -107,8 +109,8 @@ function Invoke-Scenario {
 }
 
 try {
-    $null = Invoke-Scenario -Name 'reset-before-probe' -Mode 'normal' -RejectAt 1 -Calls 0 -Succeeds $false -ErrorPattern 'Target reset was not confirmed'
-    $partial = Invoke-Scenario -Name 'reset-before-second-read' -Mode 'normal' -RejectAt 3 -Calls 2 -Succeeds $false -ErrorPattern 'Target reset was not confirmed'
+    $null = Invoke-Scenario -Name 'reset-before-probe' -Mode 'normal' -RejectAt 1 -Calls 0 -Succeeds $false -ErrorPattern 'No keypress before chip detection'
+    $partial = Invoke-Scenario -Name 'reset-before-second-read' -Mode 'normal' -RejectAt 3 -Calls 2 -Succeeds $false -ErrorPattern 'No keypress before read 2'
     if (-not (Test-Path -LiteralPath (Join-Path $partial 'read-1.bin'))) {
         throw 'The first read was lost after a later reset cancellation.'
     }
@@ -136,7 +138,7 @@ try {
     $env:TB2_FAKE_COUNTER = Join-Path $testRoot 'short-reference-calls.txt'
     $rejectedReference = $false
     try {
-        $null = & $runner -Port COM17 -OutputRoot $preflightOutput -ReferenceDump $tooShortReference -FlashromPath $fake 6>&1
+        $null = & $runner -Port COM17 -OutputRoot $preflightOutput -ReferenceDump $tooShortReference -FlashromPath $fake -ContinueKey $testContinueKey 6>&1
     } catch {
         $rejectedReference = $_.Exception.Message -match 'ReferenceDump must be exactly'
     }
@@ -162,17 +164,16 @@ try {
     Write-Output 'PASS byte comparison'
 
     $env:TB2_FAKE_COUNTER = Join-Path $testRoot 'repo-calls.txt'
-    $global:ResetPromptCount = 0
+    $global:KeyPressCount = 0
     $rejectedCheckout = $false
     try {
-        $null = & $runner -Port COM17 -OutputRoot (Join-Path (Split-Path $runner -Parent) 'would-be-public-dump') -FlashromPath $fake 6>&1
+        $null = & $runner -Port COM17 -OutputRoot (Join-Path (Split-Path $runner -Parent) 'would-be-public-dump') -FlashromPath $fake -ContinueKey $testContinueKey 6>&1
     } catch { $rejectedCheckout = $true }
     Assert-Equal -Expected $true -Actual $rejectedCheckout -Label 'Git checkout output rejection'
-    Assert-Equal -Expected 0 -Actual $global:ResetPromptCount -Label 'no prompt for checkout output'
+    Assert-Equal -Expected 0 -Actual $global:KeyPressCount -Label 'no keypress for checkout output'
     Write-Output 'PASS private output guard'
     Write-Output 'PASS all 12 fake-flashrom scenarios'
 } finally {
-    Remove-Item Function:\Read-Host -ErrorAction SilentlyContinue
     Remove-Item Env:\TB2_FAKE_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:\TB2_FAKE_COUNTER -ErrorAction SilentlyContinue
     $resolvedTemp = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')

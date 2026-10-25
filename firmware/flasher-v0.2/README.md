@@ -42,7 +42,7 @@ Complete the [electrical and reset checks](../../docs/first-dump.md) before open
 .\tools\first_dump.ps1 -Port COM17
 ```
 
-It requests 500 kHz by default, checks the `tb2-c3-serprog` name and expected 16 MiB chip, pauses for a measured target reset before detection and each of three full reads, and compares their sizes, hashes and bytes. Dumps go to a private directory outside Git; `-ReferenceDump` optionally compares a known-good image of the same unchanged flash. It never writes or erases the target. The offline regression test uses a fake programmer and does not open a serial port:
+It requests 500 kHz by default, checks the `tb2-c3-serprog` name and expected 16 MiB chip, and pauses before detection and each of three full reads. At each pause, measure the target power cycle as described in the [first-dump procedure](../../docs/first-dump.md), then press any key once to continue without Enter; Ctrl+C aborts. The runner compares read sizes, hashes and bytes. Dumps go to a private directory outside Git; `-ReferenceDump` optionally compares a known-good image of the same unchanged flash. It never writes or erases the target. The offline regression test uses a fake programmer and does not open a serial port:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\tests\first_dump.tests.ps1

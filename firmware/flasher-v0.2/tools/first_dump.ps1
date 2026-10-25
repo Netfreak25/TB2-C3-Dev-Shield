@@ -12,7 +12,13 @@ param(
 
     [string]$ReferenceDump,
 
-    [string]$FlashromPath = 'flashrom'
+    [string]$FlashromPath = 'flashrom',
+
+    [Parameter(DontShow = $true)]
+    [scriptblock]$ContinueKey = {
+        $Host.UI.RawUI.FlushInputBuffer()
+        $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    }
 )
 
 Set-StrictMode -Version Latest
@@ -50,14 +56,16 @@ function Assert-PrivatePath {
     return $fullPath
 }
 
-function Confirm-TargetReset {
-    <# The operator must measure the target rail; JP1 alone cannot prove a reset. #>
+function Wait-ForTargetReset {
+    <# A keypress only resumes execution; the operator must measure the target rail. #>
     param([Parameter(Mandatory = $true)][string]$Operation)
 
     Write-Host "Before $Operation`: keep target battery/USB disconnected. Open JP1 and verify flash VCC falls, then close JP1 and verify about 3.3 V at the chip."
-    $reply = Read-Host 'Type RESET only after measuring the target power cycle'
-    if ($reply -cne 'RESET') {
-        throw "Target reset was not confirmed before $Operation; flashrom was not started."
+    Write-Host 'After measuring both voltages, press any key to continue (Ctrl+C aborts).'
+    try {
+        $null = & $ContinueKey
+    } catch {
+        throw "No keypress before $Operation; flashrom was not started. An interactive console is required. $($_.Exception.Message)"
     }
 }
 
@@ -100,7 +108,7 @@ function Invoke-FlashromStep {
         [Parameter(Mandatory = $true)][string]$LogPath
     )
 
-    Confirm-TargetReset -Operation $Operation
+    Wait-ForTargetReset -Operation $Operation
     $lines = New-Object 'System.Collections.Generic.List[string]'
     $oldPreference = $ErrorActionPreference
     try {
