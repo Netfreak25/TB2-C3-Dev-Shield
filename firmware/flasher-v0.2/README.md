@@ -42,7 +42,11 @@ Complete the [electrical and reset checks](../../docs/first-dump.md) before open
 .\tools\first_dump.ps1 -Port COM17
 ```
 
-It requests 500 kHz by default and checks the `tb2-c3-serprog` name and expected 16 MiB chip. Before detection and each of three full reads, it waits for a new USB arrival of the selected COM port, then proceeds automatically. The wait is 180 seconds by default; adjust it with `-ResetTimeoutSeconds 300`. If cycling JP1 does not re-enumerate USB, add `-ManualReset` to continue with one keypress after each measured power cycle. Follow the [electrical procedure](../../docs/first-dump.md) in either mode: USB reappearance does not prove that target VCC fell. Ctrl+C aborts. The runner compares read sizes, hashes and bytes. Dumps go to a private directory outside Git; `-ReferenceDump` optionally compares a known-good image of the same unchanged flash. It never writes or erases the target. The offline regression test uses a fake programmer and does not open a serial port:
+It requests 500 kHz by default and checks the `tb2-c3-serprog` name and expected 16 MiB chip. In automatic mode, it waits for one new USB arrival of the selected COM device before chip detection, then waits 250 ms before starting flashrom. Adjust that delay with `-PostArrivalDelayMilliseconds 500` (range 0–1500 ms), or the 180-second reset timeout with `-ResetTimeoutSeconds 300`.
+
+After detection, leave JP1 closed: the three reads run on continuous target power, and the runner checks that the selected COM device has not changed before each one. flashrom still opens the port and rechecks the chip on every call; unlike the Flipper browser workflow, separate flashrom calls do not share an open session. If cycling JP1 does not re-enumerate USB, add `-ManualReset` to retain the four measured power-cycle and single-key checkpoints. Follow the [electrical procedure](../../docs/first-dump.md) in either mode: USB reappearance does not prove that target VCC fell, and the post-arrival delay does not prove chip readiness. Ctrl+C aborts.
+
+The runner compares read sizes, hashes and bytes. Dumps go to a private directory outside Git; `-ReferenceDump` optionally compares a known-good image of the same unchanged flash. It never writes or erases the target. The offline regression test uses a fake programmer and does not open a serial port:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\tests\first_dump.tests.ps1

@@ -19,6 +19,9 @@ param(
     [ValidateRange(1, 3600)]
     [int]$ResetTimeoutSeconds = 180,
 
+    [ValidateRange(0, 1500)]
+    [int]$PostArrivalDelayMilliseconds = 250,
+
     [Parameter(DontShow = $true)]
     [scriptblock]$ContinueKey = {
         $Host.UI.RawUI.FlushInputBuffer()
@@ -153,17 +156,39 @@ function Wait-ForTargetReset {
     }
 
     $clock.Restart()
-    Write-Host "Before $Operation`: keep target battery/USB disconnected. The JP1 off/on voltage check must already be complete; automatic mode continues immediately after USB re-enumeration."
+    Write-Host "Before $Operation`: keep target battery/USB disconnected. The JP1 off/on voltage check must already be complete; automatic mode continues after the short USB settling check."
     Write-Host "Open JP1, then close it. Waiting for the selected USB device on $Port to reconnect (Ctrl+C aborts). This does not prove that target VCC fell."
     while ($clock.Elapsed.TotalSeconds -lt $ResetTimeoutSeconds) {
         $current = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
         if ($current -and $current.LastArrival -gt $baseline.LastArrival) {
-            Write-Host "$Port reappeared; continuing with $Operation."
-            return
+            if ($PostArrivalDelayMilliseconds -gt 0) {
+                Start-Sleep -Milliseconds $PostArrivalDelayMilliseconds
+            }
+            $settled = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
+            if (-not $settled -or $settled.LastArrival -ne $current.LastArrival) {
+                throw "$Port changed again during the settling check before $Operation; flashrom was not started."
+            }
+            if ($clock.Elapsed.TotalSeconds -ge $ResetTimeoutSeconds) { break }
+            Write-Host "$Port reappeared and stayed stable; continuing with $Operation."
+            return $settled.LastArrival
         }
         Start-Sleep -Milliseconds $resetPollMilliseconds
     }
     throw "Timed out waiting for a new $Port USB arrival before $Operation; flashrom was not started. Use -ManualReset if JP1 does not reconnect USB."
+}
+
+function Assert-SelectedPortStable {
+    <# A read must use the adapter instance detected before the initial probe. #>
+    param(
+        [Parameter(Mandatory = $true)][string]$Operation,
+        [Parameter(Mandatory = $true)][string]$PortInstanceId,
+        [Parameter(Mandatory = $true)][datetime]$ExpectedArrival
+    )
+
+    $current = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
+    if (-not $current -or $current.LastArrival -ne $ExpectedArrival) {
+        throw "$Port re-enumerated or disappeared before $Operation; stop and inspect target power and wiring. No automatic retry was attempted."
+    }
 }
 
 function Assert-FlashromReport {
@@ -202,11 +227,9 @@ function Invoke-FlashromStep {
     param(
         [Parameter(Mandatory = $true)][string]$Operation,
         [Parameter(Mandatory = $true)][string[]]$Arguments,
-        [Parameter(Mandatory = $true)][string]$LogPath,
-        [string]$PortInstanceId
+        [Parameter(Mandatory = $true)][string]$LogPath
     )
 
-    Wait-ForTargetReset -Operation $Operation -PortInstanceId $PortInstanceId
     $lines = New-Object 'System.Collections.Generic.List[string]'
     $oldPreference = $ErrorActionPreference
     try {
@@ -294,13 +317,19 @@ function Invoke-FirstDump {
     Write-Host "flashrom: $($resolvedFlashrom.Source); port: $Port; requested SPI clock: $SpiSpeed"
 
     $baseArguments = @('-p', $programmer, '-c', $chipName)
-    Invoke-FlashromStep -Operation 'chip detection' -Arguments $baseArguments -LogPath (Join-Path $sessionPath 'probe.log') -PortInstanceId $portInstanceId
+    $acceptedArrival = Wait-ForTargetReset -Operation 'chip detection' -PortInstanceId $portInstanceId
+    Invoke-FlashromStep -Operation 'chip detection' -Arguments $baseArguments -LogPath (Join-Path $sessionPath 'probe.log')
 
     $reads = @()
     for ($number = 1; $number -le 3; $number++) {
         $readPath = Join-Path $sessionPath "read-$number.bin"
         $logPath = Join-Path $sessionPath "read-$number.log"
-        Invoke-FlashromStep -Operation "read $number" -Arguments ($baseArguments + @('-r', $readPath)) -LogPath $logPath -PortInstanceId $portInstanceId
+        if ($ManualReset) {
+            $null = Wait-ForTargetReset -Operation "read $number"
+        } else {
+            Assert-SelectedPortStable -Operation "read $number" -PortInstanceId $portInstanceId -ExpectedArrival $acceptedArrival
+        }
+        Invoke-FlashromStep -Operation "read $number" -Arguments ($baseArguments + @('-r', $readPath)) -LogPath $logPath
         if (-not (Test-Path -LiteralPath $readPath)) {
             throw "Read $number created no image. See $logPath"
         }
