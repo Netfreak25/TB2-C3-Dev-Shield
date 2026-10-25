@@ -110,10 +110,14 @@ function Invoke-Scenario {
 
 # Replace only PnP discovery in this test process. The runner never opens COM17.
 $global:MockPortInstanceId = 'USB\VID_TEST&PID_0001&MI_00\mock-port'
+$global:MockOtherInstanceId = 'USB\VID_TEST&PID_0001&MI_00\unrelated-port'
 $global:MockArrivalBase = [datetime]'2026-10-25T12:00:00'
 $global:MockArrivalQueries = 0
 $global:MockArrivalOffsets = @(0)
 $global:MockPnPMode = 'normal'
+$global:MockAllPortsQueries = 0
+$global:MockExactInstanceQueries = 0
+$global:MockOtherInstanceQueries = 0
 
 function global:Get-PnpDevice {
     [CmdletBinding()]
@@ -123,6 +127,8 @@ function global:Get-PnpDevice {
         ($InstanceId -and $InstanceId -cne $global:MockPortInstanceId)) {
         throw 'The runner made an unexpected PnP device query.'
     }
+    if ($Class -eq 'Ports') { $global:MockAllPortsQueries++ }
+    if ($InstanceId) { $global:MockExactInstanceQueries++ }
     $completedCalls = if (Test-Path -LiteralPath $env:TB2_FAKE_COUNTER) {
         [int](Get-Content -LiteralPath $env:TB2_FAKE_COUNTER -Raw)
     } else { 0 }
@@ -140,16 +146,31 @@ function global:Get-PnpDevice {
     } else {
         $global:MockPortInstanceId
     }
-    return [pscustomobject]@{ FriendlyName = $portName; InstanceId = $deviceId; Status = 'OK' }
+    $selected = [pscustomobject]@{ FriendlyName = $portName; InstanceId = $deviceId; Status = 'OK' }
+    if ($global:MockPnPMode -eq 'unrelated-device-only' -and $Class -eq 'Ports') {
+        $other = [pscustomobject]@{
+            FriendlyName = 'Unrelated serial device (COM18)'
+            InstanceId = $global:MockOtherInstanceId
+            Status = 'OK'
+        }
+        return @($selected, $other)
+    }
+    return $selected
 }
 
 function global:Get-PnpDeviceProperty {
     [CmdletBinding()]
     param([string]$InstanceId, [string]$KeyName)
 
-    if ($InstanceId -cne $global:MockPortInstanceId -or
-        $KeyName -cne 'DEVPKEY_Device_LastArrivalDate') {
+    if ($KeyName -cne 'DEVPKEY_Device_LastArrivalDate') {
         throw 'The runner made an unexpected PnP property query.'
+    }
+    if ($InstanceId -ceq $global:MockOtherInstanceId) {
+        $global:MockOtherInstanceQueries++
+        return [pscustomobject]@{ Data = $global:MockArrivalBase.AddSeconds(1) }
+    }
+    if ($InstanceId -cne $global:MockPortInstanceId) {
+        throw 'The runner queried an unexpected PnP device.'
     }
     $index = [Math]::Min($global:MockArrivalQueries, $global:MockArrivalOffsets.Count - 1)
     $global:MockArrivalQueries++
@@ -167,7 +188,7 @@ function Invoke-AutoScenario {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][int[]]$ArrivalOffsets,
-        [ValidateSet('normal', 'other-port', 'other-instance', 'late-new-arrival', 'late-other-port', 'late-other-instance')][string]$PnPMode = 'normal',
+        [ValidateSet('normal', 'unrelated-device-only', 'other-port', 'other-instance', 'late-new-arrival', 'late-other-port', 'late-other-instance')][string]$PnPMode = 'normal',
         [int]$DelayMilliseconds = 0,
         [Parameter(Mandatory = $true)][int]$Calls,
         [Parameter(Mandatory = $true)][bool]$Succeeds,
@@ -181,6 +202,9 @@ function Invoke-AutoScenario {
     $global:MockArrivalOffsets = $ArrivalOffsets
     $global:MockArrivalQueries = 0
     $global:MockPnPMode = $PnPMode
+    $global:MockAllPortsQueries = 0
+    $global:MockExactInstanceQueries = 0
+    $global:MockOtherInstanceQueries = 0
     $global:KeyPressCount = 0
     $global:RejectKeyAt = 1
 
@@ -197,7 +221,9 @@ function Invoke-AutoScenario {
         throw "$Name failed for the wrong reason: $failureMessage"
     }
     Assert-Equal -Expected 0 -Actual $global:KeyPressCount -Label "$Name manual keypresses"
-    if ($global:MockArrivalQueries -lt 3) { throw "$Name did not reach the automatic reset gate." }
+    if ($global:MockArrivalQueries -lt 2) { throw "$Name did not reach the automatic reset gate." }
+    Assert-Equal -Expected 1 -Actual $global:MockAllPortsQueries -Label "$Name full Ports enumerations"
+    Assert-Equal -Expected 0 -Actual $global:MockOtherInstanceQueries -Label "$Name unrelated-port property queries"
 
     $actualCalls = if (Test-Path -LiteralPath $env:TB2_FAKE_COUNTER) { [int](Get-Content -LiteralPath $env:TB2_FAKE_COUNTER -Raw) } else { 0 }
     Assert-Equal -Expected $Calls -Actual $actualCalls -Label "$Name flashrom calls"
@@ -280,12 +306,13 @@ try {
     Assert-Equal -Expected 0 -Actual $global:KeyPressCount -Label 'no keypress for checkout output'
     Write-Output 'PASS private output guard'
 
-    $autoSuccess = @(0, 0, 0, 1)
+    $autoSuccess = @(0, 0, 1)
     $null = Invoke-AutoScenario -Name 'auto-one-fresh-arrival' -ArrivalOffsets $autoSuccess -Calls 4 -Succeeds $true
     $null = Invoke-AutoScenario -Name 'auto-no-new-arrival' -ArrivalOffsets @(0) -Calls 0 -Succeeds $false -ErrorPattern 'Timed out waiting for a new COM17 USB arrival before chip detection'
-    $null = Invoke-AutoScenario -Name 'auto-arrival-changes-during-settle' -ArrivalOffsets @(0, 0, 0, 1, 2) -DelayMilliseconds 250 -Calls 0 -Succeeds $false -ErrorPattern 'COM17 changed again during the settling check before chip detection'
-    $null = Invoke-AutoScenario -Name 'auto-other-port' -ArrivalOffsets @(0, 0, 0, 1) -PnPMode 'other-port' -Calls 0 -Succeeds $false -ErrorPattern 'COM17 is no longer assigned'
-    $null = Invoke-AutoScenario -Name 'auto-other-instance' -ArrivalOffsets @(0, 0, 0, 1) -PnPMode 'other-instance' -Calls 0 -Succeeds $false -ErrorPattern 'COM17 now belongs to another USB device'
+    $null = Invoke-AutoScenario -Name 'auto-unrelated-device-only' -ArrivalOffsets @(0) -PnPMode 'unrelated-device-only' -Calls 0 -Succeeds $false -ErrorPattern 'Timed out waiting for a new COM17 USB arrival before chip detection'
+    $null = Invoke-AutoScenario -Name 'auto-arrival-changes-during-settle' -ArrivalOffsets @(0, 1, 2) -DelayMilliseconds 250 -Calls 0 -Succeeds $false -ErrorPattern 'COM17 changed again during the settling check before chip detection'
+    $null = Invoke-AutoScenario -Name 'auto-other-port' -ArrivalOffsets $autoSuccess -PnPMode 'other-port' -Calls 0 -Succeeds $false -ErrorPattern 'COM17 is no longer assigned'
+    $null = Invoke-AutoScenario -Name 'auto-other-instance' -ArrivalOffsets $autoSuccess -PnPMode 'other-instance' -Calls 0 -Succeeds $false -ErrorPattern 'COM17 now belongs to another USB device'
     $autoPartial = Invoke-AutoScenario -Name 'auto-unexpected-arrival-before-read-2' -ArrivalOffsets $autoSuccess -PnPMode 'late-new-arrival' -Calls 2 -Succeeds $false -ErrorPattern 'COM17 re-enumerated or disappeared before read 2'
     if (-not (Test-Path -LiteralPath (Join-Path $autoPartial 'read-1.bin'))) {
         throw 'The first read was lost after an unexpected USB re-enumeration.'
@@ -293,7 +320,7 @@ try {
     Write-Host 'PASS automatic mode retained the earlier read after unexpected re-enumeration'
     $null = Invoke-AutoScenario -Name 'auto-port-changed-before-read-2' -ArrivalOffsets $autoSuccess -PnPMode 'late-other-port' -Calls 2 -Succeeds $false -ErrorPattern 'COM17 is no longer assigned'
     $null = Invoke-AutoScenario -Name 'auto-device-changed-before-read-2' -ArrivalOffsets $autoSuccess -PnPMode 'late-other-instance' -Calls 2 -Succeeds $false -ErrorPattern 'COM17 now belongs to another USB device'
-    Write-Output 'PASS 12 manual and 8 automatic fake-flashrom scenarios'
+    Write-Output 'PASS 12 manual and 9 automatic fake-flashrom scenarios'
 } finally {
     Remove-Item Env:\TB2_FAKE_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:\TB2_FAKE_COUNTER -ErrorAction SilentlyContinue

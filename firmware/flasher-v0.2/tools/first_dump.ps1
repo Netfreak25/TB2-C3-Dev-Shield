@@ -65,8 +65,30 @@ function Assert-PrivatePath {
     return $fullPath
 }
 
+function Get-PortArrival {
+    <# Read only the selected device's arrival marker while waiting for its reset. #>
+    param(
+        [Parameter(Mandatory = $true)][string]$PortName,
+        [Parameter(Mandatory = $true)][string]$InstanceId,
+        [switch]$AllowMissing
+    )
+
+    try {
+        $arrival = Get-PnpDeviceProperty -InstanceId $InstanceId -KeyName 'DEVPKEY_Device_LastArrivalDate' -ErrorAction Stop
+    } catch {
+        if ($AllowMissing -and $_.FullyQualifiedErrorId -like 'CmdletizationQuery_NotFound*') {
+            return $null
+        }
+        throw "Cannot read $PortName arrival time: $($_.Exception.Message)"
+    }
+    if ($arrival.Data -isnot [datetime]) {
+        throw "$PortName has no usable last-arrival timestamp; use -ManualReset."
+    }
+    return [datetime]$arrival.Data
+}
+
 function Get-PortSnapshot {
-    <# Observe Windows PnP without opening the serial port. #>
+    <# Verify the selected Windows PnP device without opening the serial port. #>
     param(
         [Parameter(Mandatory = $true)][string]$PortName,
         [string]$ExpectedInstanceId
@@ -102,25 +124,17 @@ function Get-PortSnapshot {
         throw "$PortName now belongs to another USB device; restart with the current port."
     }
 
-    try {
-        $arrival = Get-PnpDeviceProperty -InstanceId $instanceId -KeyName 'DEVPKEY_Device_LastArrivalDate' -ErrorAction Stop
-    } catch {
-        if ($ExpectedInstanceId -and $_.FullyQualifiedErrorId -like 'CmdletizationQuery_NotFound*') {
-            return $null
-        }
-        throw "Cannot read $PortName arrival time: $($_.Exception.Message)"
-    }
-    if ($arrival.Data -isnot [datetime]) {
-        throw "$PortName has no usable last-arrival timestamp; use -ManualReset."
-    }
-    return [pscustomobject]@{ InstanceId = $instanceId; LastArrival = [datetime]$arrival.Data }
+    $arrival = Get-PortArrival -PortName $PortName -InstanceId $instanceId -AllowMissing:([bool]$ExpectedInstanceId)
+    if (-not $arrival) { return $null }
+    return [pscustomobject]@{ InstanceId = $instanceId; LastArrival = $arrival }
 }
 
 function Wait-ForTargetReset {
     <# USB re-enumeration is only a continuation signal, not proof of target VCC reset. #>
     param(
         [Parameter(Mandatory = $true)][string]$Operation,
-        [string]$PortInstanceId
+        [string]$PortInstanceId,
+        [datetime]$BaselineArrival
     )
 
     if ($ManualReset) {
@@ -134,38 +148,20 @@ function Wait-ForTargetReset {
         return
     }
 
+    if (-not $PortInstanceId -or $BaselineArrival -eq [datetime]::MinValue) {
+        throw "The selected $Port USB device has no reset baseline; flashrom was not started."
+    }
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
-    $previousArrival = $null
-    $baseline = $null
-    Write-Host "Waiting for $Port to be present and stable before $Operation..."
-    while ($clock.Elapsed.TotalSeconds -lt $ResetTimeoutSeconds) {
-        $candidate = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
-        if ($candidate) {
-            if ($previousArrival -and $candidate.LastArrival -eq $previousArrival) {
-                $baseline = $candidate
-                break
-            }
-            $previousArrival = $candidate.LastArrival
-        } else {
-            $previousArrival = $null
-        }
-        Start-Sleep -Milliseconds $resetPollMilliseconds
-    }
-    if (-not $baseline) {
-        throw "$Port did not become stable before $Operation; flashrom was not started."
-    }
-
-    $clock.Restart()
     Write-Host "Before $Operation`: keep target battery/USB disconnected. The JP1 off/on voltage check must already be complete; automatic mode continues after the short USB settling check."
     Write-Host "Open JP1, then close it. Waiting for the selected USB device on $Port to reconnect (Ctrl+C aborts). This does not prove that target VCC fell."
     while ($clock.Elapsed.TotalSeconds -lt $ResetTimeoutSeconds) {
-        $current = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
-        if ($current -and $current.LastArrival -gt $baseline.LastArrival) {
+        $arrival = Get-PortArrival -PortName $Port -InstanceId $PortInstanceId -AllowMissing
+        if ($arrival -and $arrival -gt $BaselineArrival) {
             if ($PostArrivalDelayMilliseconds -gt 0) {
                 Start-Sleep -Milliseconds $PostArrivalDelayMilliseconds
             }
             $settled = Get-PortSnapshot -PortName $Port -ExpectedInstanceId $PortInstanceId
-            if (-not $settled -or $settled.LastArrival -ne $current.LastArrival) {
+            if (-not $settled -or $settled.LastArrival -ne $arrival) {
                 throw "$Port changed again during the settling check before $Operation; flashrom was not started."
             }
             if ($clock.Elapsed.TotalSeconds -ge $ResetTimeoutSeconds) { break }
@@ -300,6 +296,7 @@ function Invoke-FirstDump {
         if (-not $portBinding) { throw "$Port is not present; automatic reset detection cannot start." }
     }
     $portInstanceId = if ($portBinding) { $portBinding.InstanceId } else { $null }
+    $baselineArrival = if ($portBinding) { $portBinding.LastArrival } else { [datetime]::MinValue }
     $referencePath = $null
     if ($ReferenceDump) {
         $referencePath = Assert-PrivatePath -Path $ReferenceDump -Purpose 'ReferenceDump'
@@ -317,7 +314,7 @@ function Invoke-FirstDump {
     Write-Host "flashrom: $($resolvedFlashrom.Source); port: $Port; requested SPI clock: $SpiSpeed"
 
     $baseArguments = @('-p', $programmer, '-c', $chipName)
-    $acceptedArrival = Wait-ForTargetReset -Operation 'chip detection' -PortInstanceId $portInstanceId
+    $acceptedArrival = Wait-ForTargetReset -Operation 'chip detection' -PortInstanceId $portInstanceId -BaselineArrival $baselineArrival
     Invoke-FlashromStep -Operation 'chip detection' -Arguments $baseArguments -LogPath (Join-Path $sessionPath 'probe.log')
 
     $reads = @()
