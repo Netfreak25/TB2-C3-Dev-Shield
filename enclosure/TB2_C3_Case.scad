@@ -44,6 +44,8 @@ star_h = 3.2;
 star_tip = 0.8;
 /* [ESP32 stack - measure your module] */
 header_spacer_h = 2.5;
+// Default retains the existing 1.3-mm ESP pin envelope below the shield.
+// Model B overrides this with the measured exposed length below the ESP PCB.
 module_pcb_t = 1.6;
 module_component_h = 2.2;
 module_roof_clearance = 0.5;
@@ -81,8 +83,10 @@ eps = 0.01;
 pcb_w = 39;
 pcb_d = 22.52;
 pcb_t = 1.6;
+esp_pin_exposed_h = header_spacer_h + pcb_t + solder_tail_max;
 pcb_z = floor_t + solder_clearance;
 pcb_top = pcb_z + pcb_t;
+esp_pin_tail_below_shield = esp_pin_exposed_h - header_spacer_h - pcb_t;
 module_x = 2.6;
 module_w = 18;
 module_center = module_x + module_w/2;
@@ -154,6 +158,8 @@ assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
 assert(pcb_z-solder_tail_max>solder_relief_floor_t+0.2,
        "Trim the THT leads to maintain clearance above the floor wells");
+assert(esp_pin_tail_below_shield>=0 && esp_pin_tail_below_shield<=solder_tail_max,
+       "ESP pins must reach through the shield without exceeding the solder-well depth");
 assert(front_overhang>front_wall_t && front_overhang-front_wall_t>=pcb_xy_clearance,
        "The front wall must clear the shield PCB edge");
 assert(usb_port_w>usb_shell_w && usb_port_w>usb_tongue_w
@@ -405,7 +411,7 @@ module shield_reference() {
                 [x+0.32,y+0.32,pcb_top+8.5]);
         for(x=[3.98,19.22],n=[0:7]) {
             y=2.37+n*2.54;
-            box([x-0.32,y-0.32,pcb_z-solder_tail_max],
+            box([x-0.32,y-0.32,pcb_z-esp_pin_tail_below_shield],
                 [x+0.32,y+0.32,pcb_top]);
         }
         for(y=[1.2,8.82,11.12,18.74])
@@ -514,4 +520,5 @@ else assert(false,"Unknown output part");
 
 echo(case_mm=[case_size.x,case_size.y,case_top],pcb_lower_z=pcb_z,
      module_lower_z=module_z,insert_top_z=insert_top,screw_tip_z=screw_tip,
-     insert_thread_engagement=insert_length,tip_floor_clearance=tip_clearance);
+     insert_thread_engagement=insert_length,tip_floor_clearance=tip_clearance,
+     esp_pin_stack_mm=[esp_pin_exposed_h,header_spacer_h,pcb_t,esp_pin_tail_below_shield]);

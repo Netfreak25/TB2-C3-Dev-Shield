@@ -4,6 +4,8 @@ A compact, two-piece dock for a **directly soldered ESP32-C3 SuperMini on the TB
 
 **Enclosure Rev. 0.8 — unverified build candidate.** The meshes and component envelopes have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
 
+For an ESP32 whose pins extend **4.5 mm below its PCB**, see the separate [Model B](model-b/README.md). It keeps the one-spacer mounting height and models the resulting 0.4-mm pin tips beneath the shield.
+
 ![Assembled flat dock](assembly.png)
 
 **Use the Rev. 0.8 base and lid together.** This enclosure fits a directly soldered module with one pinheader spacer. The base has solder relief wells; the lid includes the ESP32 roof, ACT light channel and enclosed USB-C port.

@@ -1,7 +1,7 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "5614626871fc8cc91c396e94d458482e6fbd7fe4b1d1df8f0efa4073a3dbcca0",
+  "source_sha256": "a7fe7880be5eee54e355287126c2fb6b7b0961544e656881cee6724a04ddeb92",
   "parts": {
     "base": {
       "triangles": 4048,
@@ -22,7 +22,7 @@
           11.8
         ]
       ],
-      "sha256": "28ffaabc6159f6a457dbbe4020a13485f1959870bc718c6da17d129a387a1dbe",
+      "sha256": "f4a7089ddbf97fe8f6954677ffc02bfe83f0ee0448703fc430253934643f14aa",
       "slicer_manifold": true
     },
     "lid": {
@@ -44,7 +44,7 @@
           8.8
         ]
       ],
-      "sha256": "c819f7dc8ef2ce004476a9ee810ec1054a1e3d90c724940c7ddfeaf228575fae",
+      "sha256": "0997cafa7c12806999523d85b873e27b03b8223bff2de34ff5b60b4e34466bb3",
       "slicer_manifold": true
     }
   },
@@ -77,6 +77,12 @@
       "volume_mm3": 0,
       "planar_contact_only": false
     }
+  },
+  "esp_pin_stack": {
+    "pin_exposed_below_esp_mm": 5.4,
+    "header_spacer_mm": 2.5,
+    "shield_thickness_mm": 1.6,
+    "pin_tail_below_shield_mm": 1.3
   },
   "pcb_orientation": {
     "pcb_source": "hardware/design.json",

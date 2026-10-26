@@ -1,11 +1,13 @@
 """Export the two dock parts and check meshes, nominal fit and assembly paths."""
 
 import argparse
+import ast
 import collections
 import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -14,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "TB2_C3_Case.scad"
 WORK = ROOT / ".build"
+MODEL_B_ROOT = ROOT / "model-b"
+MODEL_B_SOURCE = MODEL_B_ROOT / "TB2_C3_Case_B.scad"
 PARTS = ("base", "lid")
 COLLISIONS = ("case", "hardware", "fasteners", "usb", "cable", "lid_path",
               "light_guide_tolerance")
@@ -37,6 +41,11 @@ BUTTON_CENTERS_MM = ((8.8, 8.7), (14.3, 8.7))
 BUTTON_INNER_SAMPLE_MM = 1.0
 BUTTON_OUTER_SAMPLE_MM = 2.0
 PAD_EDGE_SAMPLE_FRACTION = 0.9
+MODEL_A_PIN_EXPOSED_MM = 5.4
+MODEL_B_PIN_EXPOSED_MM = 4.5
+HEADER_SPACER_MM = 2.5
+SHIELD_THICKNESS_MM = 1.6
+MAX_SOLDER_TAIL_MM = 1.3
 
 
 def vertical_surfaces(path, x, y):
@@ -234,13 +243,13 @@ def mesh_info(path):
             "volume_mm3": round(abs(volume), 6), "bounds_mm": bounds}
 
 
-def export(scad, selector, output):
+def export(scad, selector, output, source=SOURCE, work=WORK):
     """Run CGAL and retain the exact export log for diagnostic use."""
     proc = subprocess.run([scad, "--export-format", "binstl", "-D", f'part="{selector}"',
-                           "-o", str(output), str(SOURCE)], capture_output=True, text=True,
+                           "-o", str(output), str(source)], capture_output=True, text=True,
                           encoding="utf-8", errors="replace", timeout=180, check=False)
     log = proc.stdout + proc.stderr
-    (WORK / f"{selector}.log").write_text(log, encoding="utf-8")
+    (work / f"{selector}.log").write_text(log, encoding="utf-8")
     if "ERROR:" in log:
         raise RuntimeError(f"OpenSCAD error in {selector}; inspect its log")
     if "WARNING:" in log:
@@ -264,12 +273,40 @@ def export(scad, selector, output):
     return mesh_info(output)
 
 
+def check_pin_stack(log_path, exposed_mm):
+    """Check the rendered ESP pin stack against the measured exposed length."""
+    log = log_path.read_text(encoding="utf-8")
+    match = re.search(r"\besp_pin_stack_mm = (\[[^\]\r\n]+\])", log)
+    if not match:
+        raise RuntimeError(f"OpenSCAD did not report the ESP pin stack: {log_path}")
+    values = ast.literal_eval(match.group(1))
+    if len(values) != 4 or not all(isinstance(value, (int, float)) for value in values):
+        raise RuntimeError(f"Invalid ESP pin stack in {log_path}: {values}")
+    exposed, spacer, shield, tail = values
+    expected = (exposed_mm, HEADER_SPACER_MM, SHIELD_THICKNESS_MM,
+                exposed_mm - HEADER_SPACER_MM - SHIELD_THICKNESS_MM)
+    if any(abs(actual - nominal) > GEOMETRY_TOLERANCE_MM
+           for actual, nominal in zip(values, expected)):
+        raise RuntimeError(f"ESP pin stack differs from the intended assembly: {values} != {expected}")
+    if tail <= 0 or tail > MAX_SOLDER_TAIL_MM:
+        raise RuntimeError(f"ESP pin tip cannot be accommodated by this base: {tail} mm")
+    return {"pin_exposed_below_esp_mm": exposed, "header_spacer_mm": spacer,
+            "shield_thickness_mm": shield, "pin_tail_below_shield_mm": tail}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preview-only", action="store_true")
+    parser.add_argument("--model-b", action="store_true",
+                        help="export the 4.5-mm ESP-pin model into enclosure/model-b")
     args = parser.parse_args()
+    output_root = MODEL_B_ROOT if args.model_b else ROOT
+    source = MODEL_B_SOURCE if args.model_b else SOURCE
+    work = output_root / ".build"
     scad = executable("OPENSCAD", "openscad", "OpenSCAD/openscad.com")
-    WORK.mkdir(exist_ok=True)
+    if not source.is_file():
+        raise FileNotFoundError(f"Missing OpenSCAD source: {source}")
+    work.mkdir(parents=True, exist_ok=True)
     if args.preview_only:
         for name in ("assembly", "exploded", "section", "layout", "top", "led_section",
                      "usb_front", "usb_connected"):
@@ -286,28 +323,30 @@ def main():
             selector = "assembly" if name in ("top", "usb_front") else name
             command = [scad, "--preview", "--imgsize=1500,1100",
                        "--projection=o", "--colorscheme=Tomorrow", f"--camera={camera}",
-                       "-D", f'part="{selector}"', "-o", str(ROOT / (name + ".png")), str(SOURCE)]
+                       "-D", f'part="{selector}"', "-o", str(output_root / (name + ".png")), str(source)]
             if name not in ("section", "top", "led_section", "usb_front"):
                 command.append("--viewall")
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False)
-            (WORK / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
+            (work / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
             if (proc.returncode or "ERROR:" in proc.stdout + proc.stderr
-                    or not (ROOT / (name + ".png")).is_file()):
+                    or not (output_root / (name + ".png")).is_file()):
                 raise RuntimeError(f"Preview failed: {name}; inspect its log")
         print("Eight previews rendered; inspect them before delivery.")
         return
     slicer = executable("PRUSASLICER", "prusa-slicer", "Prusa3D/PrusaSlicer/prusa-slicer-console.exe")
     report = {"status": "unverified build candidate", "physical_fit_tested": False,
-              "source_sha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
+              "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
               "parts": {}, "collisions": {}}
+    if args.model_b:
+        report["shared_source_sha256"] = hashlib.sha256(SOURCE.read_bytes()).hexdigest()
     for part in PARTS:
-        path = ROOT / f"TB2_C3_Case_{part}.stl"
-        info = export(scad, part, path)
+        path = output_root / f"TB2_C3_Case_{part}.stl"
+        info = export(scad, part, path, source=source, work=work)
         if not info or not info["closed_edges"] or info["connected_parts"] != 1:
             raise RuntimeError(f"Mesh validation failed: {part}: {info}")
         proc = subprocess.run([slicer, "--info", str(path)], capture_output=True, text=True, timeout=60, check=False)
         log = proc.stdout + proc.stderr
-        (WORK / f"{part}-slicer.log").write_text(log, encoding="utf-8")
+        (work / f"{part}-slicer.log").write_text(log, encoding="utf-8")
         fields = {key.strip(): value.strip() for line in log.splitlines() if "=" in line
                   for key, value in [line.split("=", 1)]}
         if proc.returncode or fields.get("manifold") != "yes" or fields.get("number_of_parts") != "1":
@@ -316,26 +355,31 @@ def main():
         info["slicer_manifold"] = True
         report["parts"][part] = info
         print(f"{part}: one closed mesh, {info['volume_mm3']} mm3", flush=True)
+    report["esp_pin_stack"] = check_pin_stack(
+        work / "base.log", MODEL_B_PIN_EXPOSED_MM if args.model_b else MODEL_A_PIN_EXPOSED_MM)
+    print(f"ESP pin stack: {report['esp_pin_stack']['pin_tail_below_shield_mm']:.1f} mm "
+          "metal tail under shield", flush=True)
     report["pcb_orientation"] = check_pcb_orientation(
-        ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
+        output_root / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
     print("PCB orientation: D1, J1 and JP1 match the released layout", flush=True)
     report["module_roof"] = check_module_roof(
-        ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
+        output_root / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
     print("ESP32 and USB roof: closed except for BOOT and RESET accesses", flush=True)
     report["solder_reliefs"] = check_solder_reliefs(
-        ROOT / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json")
+        output_root / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json")
     print("Solder wells: all THT pads relieved; central floor rib intact", flush=True)
     report["light_channel"] = check_light_channel(
-        ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
+        output_root / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
     print(f"LED tube: continuous wall extends "
           f"{LIGHT_TUBE_PRINT_HEIGHT_MM-USB_LID_ROOF_MM:.1f} mm below the lid roof",
           flush=True)
     report["usb_entry"] = check_usb_entry(
-        ROOT / "TB2_C3_Case_base.stl", ROOT / "TB2_C3_Case_lid.stl",
+        output_root / "TB2_C3_Case_base.stl", output_root / "TB2_C3_Case_lid.stl",
         ROOT.parent / "hardware/design.json")
     print("USB entry: enclosed port with intact side shoulders", flush=True)
     for name in COLLISIONS:
-        info = export(scad, "collision_" + name, WORK / ("collision_" + name + ".stl"))
+        info = export(scad, "collision_" + name, work / ("collision_" + name + ".stl"),
+                      source=source, work=work)
         volume = info["volume_mm3"] if info else 0
         report["collisions"][name] = {
             "volume_mm3": volume,
@@ -344,7 +388,8 @@ def main():
         if volume > ZERO_VOLUME_MM3:
             raise RuntimeError(f"Nominal collision: {name}: {volume} mm3")
         print(f"{name}: no volumetric collision", flush=True)
-    probe = export(scad, "led_membrane_probe", WORK / "led_membrane_probe.stl")
+    probe = export(scad, "led_membrane_probe", work / "led_membrane_probe.stl",
+                   source=source, work=work)
     if not probe or not probe["closed_edges"] or probe["connected_parts"] != 1:
         raise RuntimeError("LED membrane is missing or not a closed connected solid")
     thickness = probe["bounds_mm"][2][1] - probe["bounds_mm"][2][0]
@@ -352,7 +397,8 @@ def main():
         raise RuntimeError(f"Expected one 0.2 mm LED-cover layer, found {thickness} mm")
     report["led_membrane"] = {"thickness_mm": round(thickness, 5), "closed": True}
     print("LED cover: continuous 0.2 mm skin", flush=True)
-    (ROOT / "validation.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
+    (output_root / "validation.json").write_text(
+        json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
     print("Geometry checks passed. Actual module, cable, print and fit remain unverified.")
 
 
