@@ -1,4 +1,4 @@
-/* TB2 C3 Dev Shield flat dock, Rev. 0.7. Units: mm.
+/* TB2 C3 Dev Shield flat dock, Rev. 0.8. Units: mm.
  * Construction coordinates follow the PCB drawing: USB edge y=0, +Y down.
  * Outputs convert once to Cartesian +Y up; PCB lower face stays at pcb_z.
  * Hardware envelopes and physical fit remain unverified.
@@ -48,11 +48,20 @@ module_pcb_t = 1.6;
 module_component_h = 2.2;
 module_roof_clearance = 0.5;
 usb_shell_h = 3.2;
+usb_shell_w = 9.0;
 usb_plug_w = 16;
 usb_plug_h = 9;
-usb_notch_side_clearance = 2.0;
-usb_notch_bottom_clearance = 1.6;
-usb_notch_corner_r = 1.0;
+usb_port_w = 10.4;
+usb_port_h = 4.4;
+usb_port_corner_r = 0.6;
+usb_tongue_w = 8.4;
+usb_tongue_h = 2.4;
+usb_tongue_l = 6.65;
+usb_body_face_clearance = 0.15;
+front_overhang = 1.2;
+front_wall_t = 1.0;
+j1_mate_center_x = 28.85;
+j1_mate_clearance_w = 9.5;
 button_access_d = 3.0;
 
 /* [M2 hardware] */
@@ -80,11 +89,13 @@ module_center = module_x + module_w/2;
 module_z = pcb_top + header_spacer_h;
 module_top = module_z + module_pcb_t;
 usb_center_z = module_top + usb_shell_h/2;
-case_top = module_top + module_component_h + module_roof_clearance + roof_t;
+case_top = module_top + max(module_component_h,usb_shell_h)
+           + module_roof_clearance + roof_t;
 seam_z = case_top - roof_t;
-usb_notch_floor_z = usb_center_z - usb_plug_h/2 - usb_notch_bottom_clearance;
-case_min = [-7,-4];
-case_size = [53,pcb_d+8];
+usb_port_floor_z = usb_center_z - usb_port_h/2;
+usb_port_top_z = usb_center_z + usb_port_h/2;
+case_min = [-7,-front_overhang];
+case_size = [53,pcb_d+front_overhang+4];
 corner_r = 3;
 skirt_drop = 1.4;
 skirt_t = 1.0;
@@ -104,8 +115,7 @@ module_open_min = [2.15,-0.5];
 module_open_max = [21.05,23.02];
 // Approximate NologoTech button centers; check the actual module variant.
 button_centers = [[module_x+6.2,8.7],[module_x+11.7,8.7]];
-usb_roof_slot_rear_y = 6.4;
-usb_roof_slot_half_w = 5.3;
+usb_shell_rear_y = 6.4;
 service_open_min = [23.5,-0.2];
 led_center = [36,20.75];
 led_membrane_t = print_layer_h;
@@ -144,11 +154,15 @@ assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
 assert(pcb_z-solder_tail_max>solder_relief_floor_t+0.2,
        "Trim the THT leads to maintain clearance above the floor wells");
-assert(usb_notch_floor_z>floor_t+1.5
-       && usb_notch_floor_z<usb_center_z-usb_plug_h/2,
-       "USB relief must preserve the bottom sill and clear the cable housing");
-assert(usb_roof_slot_rear_y<button_centers[0].y-button_access_d/2-0.5,
-       "USB roof slot must leave a bridge before the button access holes");
+assert(front_overhang>front_wall_t && front_overhang-front_wall_t>=pcb_xy_clearance,
+       "The front wall must clear the shield PCB edge");
+assert(usb_port_w>usb_shell_w && usb_port_w>usb_tongue_w
+       && usb_port_h>usb_shell_h && usb_port_h>usb_tongue_h,
+       "USB port must clear the receptacle and plug tongue");
+assert(usb_port_floor_z>floor_t && case_top-usb_port_top_z>=1.0,
+       "USB port must leave a floor sill and a printable top bridge");
+assert(usb_shell_rear_y<button_centers[0].y-button_access_d/2-0.5,
+       "USB port must leave a bridge before the button access holes");
 
 module box(a,b) { translate(a) cube(b-a); }
 module pcb_to_world() {
@@ -167,25 +181,18 @@ module axis(i) { translate([screw_axes[i].x,screw_axes[i].y,0]) children(); }
 module cylinder_z(d,z0,z1) { translate([0,0,z0]) cylinder(d=d,h=z1-z0); }
 module aperture(a,b) { box([a.x,a.y,0],[b.x,b.y,case_top+eps]); }
 module usb_access_cut() {
-    // Open-top relief in the USB-facing wall. The module port remains above it.
-    width = usb_plug_w + 2*usb_notch_side_clearance;
-    x0 = module_center-width/2;
-    x1 = module_center+width/2;
+    // Rounded USB-C port: the cable overmold stops outside the front face.
+    x0 = module_center-usb_port_w/2;
+    x1 = module_center+usb_port_w/2;
     y0 = case_min.y-eps;
-    y1 = module_open_min.y+eps;
-    z0 = usb_notch_floor_z;
-    r = usb_notch_corner_r;
-    union() {
-        box([x0+r,y0,z0],[x1-r,y1,case_top+eps]);
-        box([x0,y0,z0+r],[x1,y1,case_top+eps]);
-        for(x=[x0+r,x1-r])
-            translate([x,y0,z0+r]) rotate([-90,0,0])
-                cylinder(r=r,h=y1-y0);
-    }
-}
-module usb_roof_slot() {
-    box([module_center-usb_roof_slot_half_w,module_open_min.y-eps,0],
-        [module_center+usb_roof_slot_half_w,usb_roof_slot_rear_y,case_top+eps]);
+    y1 = usb_shell_rear_y;
+    z0 = usb_port_floor_z;
+    z1 = usb_port_top_z;
+    r = usb_port_corner_r;
+    translate([0,y1,0]) rotate([90,0,0])
+        linear_extrude(y1-y0)
+            offset(r=r) translate([x0+r,z0+r])
+                square([x1-x0-2*r,z1-z0-2*r]);
 }
 module button_access_holes() {
     for(point=button_centers)
@@ -212,14 +219,19 @@ module openings() {
     // Leave a continuous roof over the module, with tool access to both buttons.
     box([module_open_min.x,module_open_min.y,0],
         [module_open_max.x,module_open_max.y,seam_z+eps]);
-    usb_roof_slot();
     button_access_holes();
     aperture(service_open_min,service_open_max);
     // Closed, one-layer outer skin above the tapered light channel.
     light_channel_bore();
 }
 module perimeter_shell(z0,z1) {
-    difference() { slab(z0,z1); slab(z0-eps,z1+eps,wall); }
+    difference() {
+        slab(z0,z1);
+        slab(z0-eps,z1+eps,wall);
+        // Thin only the front wall; the shield PCB starts just behind it.
+        box([case_min.x+corner_r,case_min.y+front_wall_t,z0-eps],
+            [case_min.x+case_size.x-corner_r,case_min.y+wall+eps,z1+eps]);
+    }
 }
 module pcb_seats() {
     // Bear only on the PCB's unpopulated outer edges, avoiding all pads.
@@ -287,19 +299,21 @@ module wall_label(position,angle,length,count,stars) {
             linear_extrude(mark_depth+eps) magic_band(length,count,stars);
 }
 module perimeter_labels() {
-    x0=case_min.x; x1=x0+case_size.x; y0=case_min.y; y1=y0+case_size.y;
-    front_right_x = module_center+(usb_plug_w+2*usb_notch_side_clearance)/2;
-    // The lower USB sill is too short for lettering. Keep MAGIC on its right shoulder.
-    // Glyphs are constructed in Cartesian coordinates. Apply the inverse
-    // conversion here so the output transform does not mirror the lettering.
+    x0=case_min.x; x1=x0+case_size.x;
+    // The engraving is defined in world coordinates before the outer Y flip.
+    y_back=pcb_d-(case_min.y+case_size.y);
+    y_front=pcb_d-case_min.y;
+    front_right_x = module_center+usb_port_w/2;
+    // Place MAGIC and a small star on opposite sides of the USB-C port.
     pcb_to_world() {
-        wall_label([front_right_x,y0],0,x1-corner_r-front_right_x,1,0);
-        translate([x0+corner_r+2,y0,case_top/2])
-            rotate([90,0,0]) translate([0,0,-mark_depth])
+        wall_label([x1-corner_r,y_front],180,
+                   x1-corner_r-front_right_x,1,0);
+        translate([x0+corner_r+2,y_front,case_top/2])
+            rotate([-90,0,0]) translate([0,0,-mark_depth])
                 linear_extrude(mark_depth+eps) magic_star();
-        wall_label([x1,y0+corner_r],90,case_size.y-2*corner_r,1,1);
-        wall_label([x1-corner_r,y1],180,case_size.x-2*corner_r,2,2);
-        wall_label([x0,y1-corner_r],270,case_size.y-2*corner_r,1,0);
+        wall_label([x1,y_back+corner_r],90,case_size.y-2*corner_r,1,0);
+        wall_label([x0+corner_r,y_back],0,case_size.x-2*corner_r,2,2);
+        wall_label([x0,y_front-corner_r],270,case_size.y-2*corner_r,1,0);
     }
 }
 module base() {
@@ -352,8 +366,8 @@ module module_reference() {
     color([0.12,0.12,0.14]) for(x=[3.98,19.22])
         box([x-1.25,1.1,pcb_top],[x+1.25,21.42,module_z]);
     color([0.12,0.14,0.19]) box([module_x,0,module_z],[module_x+module_w,pcb_d,module_top]);
-    color([0.6,0.64,0.68]) box([module_center-4.5,-1,module_top],
-        [module_center+4.5,6,module_top+usb_shell_h]);
+    color([0.6,0.64,0.68]) box([module_center-usb_shell_w/2,-1,module_top],
+        [module_center+usb_shell_w/2,6,module_top+usb_shell_h]);
     color([0.25,0.28,0.3]) box([6.5,8,module_top],
                                [16.7,20,module_top+module_component_h]);
 }
@@ -422,16 +436,19 @@ module fasteners() {
 }
 module usb_plug_reference() {
     union() {
-        // Cable housing approaches the wall; the narrower tongue continues into USB-C.
+        // USB-C metal tongue crosses the wall; the overmold remains outside it.
+        body_end_y = case_min.y-usb_body_face_clearance;
         box([module_center-usb_plug_w/2,-15,usb_center_z-usb_plug_h/2],
-            [module_center+usb_plug_w/2,-0.8,usb_center_z+usb_plug_h/2]);
-        box([module_center-4,-0.8,usb_center_z-1.1],
-            [module_center+4,4.5,usb_center_z+1.1]);
+            [module_center+usb_plug_w/2,body_end_y,usb_center_z+usb_plug_h/2]);
+        box([module_center-usb_tongue_w/2,body_end_y,usb_center_z-usb_tongue_h/2],
+            [module_center+usb_tongue_w/2,body_end_y+usb_tongue_l,
+             usb_center_z+usb_tongue_h/2]);
     }
 }
 module cable_reference() {
-    // Mating plug and shunt keepouts: confirm against the actual cable.
-    box([23.9,3.9,pcb_top+8.75],[33.8,22.72,case_top+20]);
+    // Reference female IDC is 8.45 +/- 0.15 mm wide, plus model clearance.
+    box([j1_mate_center_x-j1_mate_clearance_w/2,3.9,pcb_top+8.75],
+        [j1_mate_center_x+j1_mate_clearance_w/2,22.72,case_top+20]);
     box([26.0,0.1,pcb_top+3],[31.7,3.2,case_top+20]);
 }
 module case_assembly() { base(); lid(); }

@@ -22,13 +22,15 @@ GEOMETRY_TOLERANCE_MM = 0.00001
 CUT_SURFACE_TOLERANCE_MM = 0.02
 LIGHT_RING_RADIUS_MM = 2.2
 LIGHT_RING_SAMPLES = 72
-LIGHT_TUBE_PRINT_HEIGHT_MM = 5.2
-USB_FRONT_SAMPLE_MM = 3.0
-USB_PLUG_HALF_WIDTH_MM = 8.0
-USB_SHOULDER_OFFSET_MM = 10.5
-USB_ENTRY_FLOOR_MM = 3.6
-USB_BASE_SEAM_MM = 10.8
+LIGHT_TUBE_PRINT_HEIGHT_MM = 6.2
+USB_FRONT_SAMPLE_MM = 0.6
+USB_TONGUE_WIDTH_MM = 8.4
+USB_PORT_WIDTH_MM = 10.4
+USB_SHOULDER_OFFSET_MM = USB_PORT_WIDTH_MM/2 + 0.5
+USB_ENTRY_FLOOR_MM = 7.5
+USB_BASE_SEAM_MM = 11.8
 USB_LID_ROOF_MM = 1.2
+USB_PORT_ROOF_MM = 1.1
 SOLDER_RELIEF_FLOOR_MM = 0.8
 PCB_FLOOR_RIB_MM = 1.6
 BUTTON_CENTERS_MM = ((8.8, 8.7), (14.3, 8.7))
@@ -86,7 +88,7 @@ def check_light_channel(lid_path, design_path):
     """Require a continuous deep ring around the PCB's LED in the printed STL.
 
     A blind pocket in a flat roof cannot satisfy this check: every sampled
-    ray must cross a wall that projects 4.0 mm below the 1.2-mm roof.
+    ray must cross a wall that projects 5.0 mm below the 1.2-mm roof.
     """
     design = json.loads(design_path.read_text(encoding="utf-8"))
     pads = [p for p in design["pads"] if p["ref"] == "D1"]
@@ -105,7 +107,7 @@ def check_light_channel(lid_path, design_path):
 
 
 def check_module_roof(lid_path, design_path):
-    """Require a closed roof, small button accesses and a local USB slot."""
+    """Require a closed roof above both the ESP32 and its USB-C receptacle."""
     design = json.loads(design_path.read_text(encoding="utf-8"))
     module = design["module_mm"]
     center_x = module[0] + module[2]/2
@@ -125,11 +127,13 @@ def check_module_roof(lid_path, design_path):
                 raise RuntimeError(f"{name} access hole removed too much roof")
         if not vertical_surfaces(lid_path, x, design["board_mm"][1]-y):
             raise RuntimeError(f"{name} access hole is reflected across the board")
-    if vertical_surfaces(lid_path, center_x, 3):
-        raise RuntimeError("USB shell roof slot is blocked")
+    usb_roof = vertical_surfaces(lid_path, center_x, 3)
+    if (len(usb_roof) != 2 or abs(usb_roof[0]) > GEOMETRY_TOLERANCE_MM
+            or abs(usb_roof[1]-USB_PORT_ROOF_MM) > CUT_SURFACE_TOLERANCE_MM):
+        raise RuntimeError(f"USB roof is open or too thin: {usb_roof}")
     return {"pcb_source": "hardware/design.json", "roof_thickness_mm": roof[1]-roof[0],
             "button_centers_mm": [list(point) for point in BUTTON_CENTERS_MM],
-            "usb_shell_slot_open": True}
+            "usb_roof_thickness_mm": usb_roof[1]-usb_roof[0]}
 
 
 def check_solder_reliefs(base_path, design_path):
@@ -153,7 +157,7 @@ def check_solder_reliefs(base_path, design_path):
 
 
 def check_usb_entry(base_path, lid_path, design_path):
-    """Check the delivered meshes leave an open USB-facing wall relief.
+    """Check a framed USB-C port and continuous plastic around its tongue.
 
     The module center comes from the independent PCB header footprint.
     The base and print-oriented lid have opposite Y transforms.
@@ -163,13 +167,15 @@ def check_usb_entry(base_path, lid_path, design_path):
     center_x = (min(pad["x"] for pad in module_pads) + max(pad["x"] for pad in module_pads)) / 2
     base_y = design["board_mm"][1] + USB_FRONT_SAMPLE_MM
     lid_y = -USB_FRONT_SAMPLE_MM
-    for offset in (-USB_PLUG_HALF_WIDTH_MM, 0, USB_PLUG_HALF_WIDTH_MM):
+    for offset in (-USB_TONGUE_WIDTH_MM/2, 0, USB_TONGUE_WIDTH_MM/2):
         x = center_x + offset
         base = vertical_surfaces(base_path, x, base_y)
         lid = vertical_surfaces(lid_path, x, lid_y)
         if (len(base) != 2 or abs(base[0]) > GEOMETRY_TOLERANCE_MM
-                or abs(base[1] - USB_ENTRY_FLOOR_MM) > GEOMETRY_TOLERANCE_MM or lid):
-            raise RuntimeError(f"USB wall relief is obstructed at x={x}: base={base}, lid={lid}")
+                or abs(base[1] - USB_ENTRY_FLOOR_MM) > CUT_SURFACE_TOLERANCE_MM
+                or len(lid) != 2 or abs(lid[0]) > GEOMETRY_TOLERANCE_MM
+                or abs(lid[1]-USB_PORT_ROOF_MM) > CUT_SURFACE_TOLERANCE_MM):
+            raise RuntimeError(f"USB port is open or obstructed at x={x}: base={base}, lid={lid}")
     for offset in (-USB_SHOULDER_OFFSET_MM, USB_SHOULDER_OFFSET_MM):
         x = center_x + offset
         base = vertical_surfaces(base_path, x, base_y)
@@ -178,9 +184,9 @@ def check_usb_entry(base_path, lid_path, design_path):
                 or len(lid) != 2 or abs(lid[1]-USB_LID_ROOF_MM) > GEOMETRY_TOLERANCE_MM):
             raise RuntimeError(f"USB-side shoulders are missing at x={x}: base={base}, lid={lid}")
     return {"pcb_source": "hardware/design.json", "module_center_x_mm": center_x,
-            "clear_entry_width_mm": 2*USB_PLUG_HALF_WIDTH_MM,
-            "base_relief_floor_mm": USB_ENTRY_FLOOR_MM,
-            "continuous_shoulders": True}
+            "nominal_port_width_mm": USB_PORT_WIDTH_MM,
+            "base_port_floor_mm": USB_ENTRY_FLOOR_MM,
+            "top_bridge_mm": USB_PORT_ROOF_MM, "continuous_shoulders": True}
 
 
 def executable(variable, name, windows_path):
@@ -285,8 +291,9 @@ def main():
                 command.append("--viewall")
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False)
             (WORK / f"{name}-preview.log").write_text(proc.stdout+proc.stderr, encoding="utf-8")
-            if proc.returncode or not (ROOT / (name + ".png")).is_file():
-                raise RuntimeError(f"Preview failed: {name}")
+            if (proc.returncode or "ERROR:" in proc.stdout + proc.stderr
+                    or not (ROOT / (name + ".png")).is_file()):
+                raise RuntimeError(f"Preview failed: {name}; inspect its log")
         print("Eight previews rendered; inspect them before delivery.")
         return
     slicer = executable("PRUSASLICER", "prusa-slicer", "Prusa3D/PrusaSlicer/prusa-slicer-console.exe")
@@ -314,17 +321,19 @@ def main():
     print("PCB orientation: D1, J1 and JP1 match the released layout", flush=True)
     report["module_roof"] = check_module_roof(
         ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
-    print("ESP32 roof: closed except for USB, BOOT and RESET accesses", flush=True)
+    print("ESP32 and USB roof: closed except for BOOT and RESET accesses", flush=True)
     report["solder_reliefs"] = check_solder_reliefs(
         ROOT / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json")
     print("Solder wells: all THT pads relieved; central floor rib intact", flush=True)
     report["light_channel"] = check_light_channel(
         ROOT / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
-    print("LED tube: continuous wall extends 4.0 mm below the lid roof", flush=True)
+    print(f"LED tube: continuous wall extends "
+          f"{LIGHT_TUBE_PRINT_HEIGHT_MM-USB_LID_ROOF_MM:.1f} mm below the lid roof",
+          flush=True)
     report["usb_entry"] = check_usb_entry(
         ROOT / "TB2_C3_Case_base.stl", ROOT / "TB2_C3_Case_lid.stl",
         ROOT.parent / "hardware/design.json")
-    print("USB entry: open front relief with intact side shoulders", flush=True)
+    print("USB entry: enclosed port with intact side shoulders", flush=True)
     for name in COLLISIONS:
         info = export(scad, "collision_" + name, WORK / ("collision_" + name + ".stl"))
         volume = info["volume_mm3"] if info else 0

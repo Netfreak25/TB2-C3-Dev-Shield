@@ -1,13 +1,13 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "658b55d304548cfdb5fc0ddb29f187a37399a2a399187f9c8d70ae5662ef9fca",
+  "source_sha256": "5614626871fc8cc91c396e94d458482e6fbd7fe4b1d1df8f0efa4073a3dbcca0",
   "parts": {
     "base": {
-      "triangles": 3728,
+      "triangles": 4048,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 4864.534521,
+      "volume_mm3": 4667.506671,
       "bounds_mm": [
         [
           -7.0,
@@ -15,36 +15,36 @@
         ],
         [
           -3.99999,
-          26.52
+          23.72001
         ],
         [
           0.0,
-          10.8
+          11.8
         ]
       ],
-      "sha256": "56a411144f446f31dce1baca71de406a17f35f8d8f61838b939f97acd44a5d4c",
+      "sha256": "28ffaabc6159f6a457dbbe4020a13485f1959870bc718c6da17d129a387a1dbe",
       "slicer_manifold": true
     },
     "lid": {
-      "triangles": 2548,
+      "triangles": 2588,
       "connected_parts": 1,
       "closed_edges": true,
-      "volume_mm3": 1998.863802,
+      "volume_mm3": 2021.7611,
       "bounds_mm": [
         [
           -7.0,
           46.0
         ],
         [
-          -4.0,
+          -1.20001,
           26.51999
         ],
         [
           0.0,
-          7.8
+          8.8
         ]
       ],
-      "sha256": "87752c7897c23d503742e63108854fa0d4456df58ae0d37f5edbdca91c1f98c9",
+      "sha256": "c819f7dc8ef2ce004476a9ee810ec1054a1e3d90c724940c7ddfeaf228575fae",
       "slicer_manifold": true
     }
   },
@@ -90,7 +90,7 @@
     ],
     "reflected_position_surfaces_mm": [
       0.0,
-      1.2
+      2.6
     ],
     "connector_and_jumper_pads_clear": true
   },
@@ -107,7 +107,7 @@
         8.7
       ]
     ],
-    "usb_shell_slot_open": true
+    "usb_roof_thickness_mm": 1.10001
   },
   "solder_reliefs": {
     "pcb_source": "hardware/design.json",
@@ -118,14 +118,15 @@
   "light_channel": {
     "ring_samples": 72,
     "sample_radius_mm": 2.2,
-    "wall_depth_from_outer_face_mm": 5.2,
-    "projection_below_roof_mm": 4.0
+    "wall_depth_from_outer_face_mm": 6.2,
+    "projection_below_roof_mm": 5.0
   },
   "usb_entry": {
     "pcb_source": "hardware/design.json",
     "module_center_x_mm": 11.599999999999998,
-    "clear_entry_width_mm": 16.0,
-    "base_relief_floor_mm": 3.6,
+    "nominal_port_width_mm": 10.4,
+    "base_port_floor_mm": 7.5,
+    "top_bridge_mm": 1.1,
     "continuous_shoulders": true
   },
   "led_membrane": {
