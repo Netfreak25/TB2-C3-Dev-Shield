@@ -1,7 +1,7 @@
 {
   "status": "unverified build candidate",
   "physical_fit_tested": false,
-  "source_sha256": "a7fe7880be5eee54e355287126c2fb6b7b0961544e656881cee6724a04ddeb92",
+  "source_sha256": "5fbd518bc070cc4511b8e4f9f298549e5e8189d3e61683c04520b48c4d84c1e2",
   "parts": {
     "base": {
       "triangles": 4048,
@@ -121,6 +121,13 @@
     "well_floor_mm": 0.8,
     "intact_rib_floor_mm": 1.6
   },
+  "pcb_seats": {
+    "pcb_source": "hardware/design.json",
+    "pcb_underside_mm": 2.4,
+    "seat_count": 4,
+    "support_depth_mm": 2.0,
+    "probe_count": 12
+  },
   "light_channel": {
     "ring_samples": 72,
     "sample_radius_mm": 2.2,
@@ -132,6 +139,7 @@
     "module_center_x_mm": 11.599999999999998,
     "nominal_port_width_mm": 10.4,
     "base_port_floor_mm": 7.5,
+    "base_seam_mm": 11.8,
     "top_bridge_mm": 1.1,
     "continuous_shoulders": true
   },

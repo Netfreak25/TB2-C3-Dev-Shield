@@ -41,11 +41,21 @@ BUTTON_CENTERS_MM = ((8.8, 8.7), (14.3, 8.7))
 BUTTON_INNER_SAMPLE_MM = 1.0
 BUTTON_OUTER_SAMPLE_MM = 2.0
 PAD_EDGE_SAMPLE_FRACTION = 0.9
-MODEL_A_PIN_EXPOSED_MM = 5.4
-MODEL_B_PIN_EXPOSED_MM = 4.5
 HEADER_SPACER_MM = 2.5
 SHIELD_THICKNESS_MM = 1.6
-MAX_SOLDER_TAIL_MM = 1.3
+MODEL_A_PIN_TAIL_MM = 1.3
+MODEL_B_PIN_TAIL_MM = 4.5
+MODEL_A_PIN_EXPOSED_MM = HEADER_SPACER_MM + SHIELD_THICKNESS_MM + MODEL_A_PIN_TAIL_MM
+MODEL_B_PIN_EXPOSED_MM = HEADER_SPACER_MM + SHIELD_THICKNESS_MM + MODEL_B_PIN_TAIL_MM
+MODEL_A_PCB_UNDERSIDE_MM = 2.4
+MODEL_B_ELEVATION_MM = 4.0
+MODEL_B_PCB_UNDERSIDE_MM = MODEL_A_PCB_UNDERSIDE_MM + MODEL_B_ELEVATION_MM
+MODEL_A_SUPPORT_DEPTH_MM = 2.0
+MODEL_B_SUPPORT_DEPTH_MM = 4.0
+SUPPORT_ROW_STARTS_MM = (2.5, 18.0)
+SUPPORT_PROBE_EDGE_MM = 0.2
+SUPPORT_PROBE_X_INSET_MM = 0.1
+MIN_PIN_FLOOR_CLEARANCE_MM = 0.3
 
 
 def vertical_surfaces(path, x, y):
@@ -165,7 +175,7 @@ def check_solder_reliefs(base_path, design_path):
             "intact_rib_floor_mm": PCB_FLOOR_RIB_MM}
 
 
-def check_usb_entry(base_path, lid_path, design_path):
+def check_usb_entry(base_path, lid_path, design_path, elevation_mm=0.0):
     """Check a framed USB-C port and continuous plastic around its tongue.
 
     The module center comes from the independent PCB header footprint.
@@ -181,7 +191,7 @@ def check_usb_entry(base_path, lid_path, design_path):
         base = vertical_surfaces(base_path, x, base_y)
         lid = vertical_surfaces(lid_path, x, lid_y)
         if (len(base) != 2 or abs(base[0]) > GEOMETRY_TOLERANCE_MM
-                or abs(base[1] - USB_ENTRY_FLOOR_MM) > CUT_SURFACE_TOLERANCE_MM
+                or abs(base[1] - (USB_ENTRY_FLOOR_MM + elevation_mm)) > CUT_SURFACE_TOLERANCE_MM
                 or len(lid) != 2 or abs(lid[0]) > GEOMETRY_TOLERANCE_MM
                 or abs(lid[1]-USB_PORT_ROOF_MM) > CUT_SURFACE_TOLERANCE_MM):
             raise RuntimeError(f"USB port is open or obstructed at x={x}: base={base}, lid={lid}")
@@ -189,13 +199,58 @@ def check_usb_entry(base_path, lid_path, design_path):
         x = center_x + offset
         base = vertical_surfaces(base_path, x, base_y)
         lid = vertical_surfaces(lid_path, x, lid_y)
-        if (len(base) != 2 or abs(base[1]-USB_BASE_SEAM_MM) > GEOMETRY_TOLERANCE_MM
+        if (len(base) != 2 or abs(base[1]-(USB_BASE_SEAM_MM + elevation_mm)) > GEOMETRY_TOLERANCE_MM
                 or len(lid) != 2 or abs(lid[1]-USB_LID_ROOF_MM) > GEOMETRY_TOLERANCE_MM):
             raise RuntimeError(f"USB-side shoulders are missing at x={x}: base={base}, lid={lid}")
     return {"pcb_source": "hardware/design.json", "module_center_x_mm": center_x,
             "nominal_port_width_mm": USB_PORT_WIDTH_MM,
-            "base_port_floor_mm": USB_ENTRY_FLOOR_MM,
+            "base_port_floor_mm": USB_ENTRY_FLOOR_MM + elevation_mm,
+            "base_seam_mm": USB_BASE_SEAM_MM + elevation_mm,
             "top_bridge_mm": USB_PORT_ROOF_MM, "continuous_shoulders": True}
+
+
+def check_pcb_seats(base_path, design_path, pcb_underside_mm, support_depth_mm):
+    """Verify all four PCB seats at their actual height and across their depth."""
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    board_width, board_depth = design["board_mm"]
+    x_positions = (SUPPORT_PROBE_X_INSET_MM, board_width-SUPPORT_PROBE_X_INSET_MM)
+    row_samples = (SUPPORT_PROBE_EDGE_MM, support_depth_mm/2,
+                   support_depth_mm-SUPPORT_PROBE_EDGE_MM)
+    for row_start in SUPPORT_ROW_STARTS_MM:
+        for row_offset in row_samples:
+            y = board_depth-row_start-row_offset
+            for x in x_positions:
+                surfaces = vertical_surfaces(base_path, x, y)
+                if (len(surfaces) != 2 or abs(surfaces[0]) > GEOMETRY_TOLERANCE_MM
+                        or abs(surfaces[1]-pcb_underside_mm) > CUT_SURFACE_TOLERANCE_MM):
+                    raise RuntimeError(f"PCB seat missing at {(x, y)}: {surfaces}")
+    return {"pcb_source": "hardware/design.json", "pcb_underside_mm": pcb_underside_mm,
+            "seat_count": len(x_positions)*len(SUPPORT_ROW_STARTS_MM),
+            "support_depth_mm": support_depth_mm,
+            "probe_count": len(x_positions)*len(SUPPORT_ROW_STARTS_MM)*len(row_samples)}
+
+
+def check_esp_pin_clearance(base_path, design_path, pcb_underside_mm, pin_tail_mm):
+    """Check the full pin projection against the real base mesh at every ESP pad."""
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    board_depth = design["board_mm"][1]
+    pin_tip_z = pcb_underside_mm-pin_tail_mm
+    rib_gap = pin_tip_z-PCB_FLOOR_RIB_MM
+    if rib_gap < MIN_PIN_FLOOR_CLEARANCE_MM-GEOMETRY_TOLERANCE_MM:
+        raise RuntimeError(f"ESP pin tips lack clearance above the normal floor: {rib_gap} mm")
+    module_pads = [pad for pad in design["pads"] if pad["ref"] in ("JL", "JR")]
+    worst_gap = float("inf")
+    for pad in module_pads:
+        surfaces = vertical_surfaces(base_path, pad["x"], board_depth-pad["y"])
+        if len(surfaces) != 2 or abs(surfaces[0]) > GEOMETRY_TOLERANCE_MM:
+            raise RuntimeError(f"Unexpected base surfaces under {pad['ref']}/{pad['pin']}: {surfaces}")
+        gap = pin_tip_z-surfaces[1]
+        if gap < MIN_PIN_FLOOR_CLEARANCE_MM-GEOMETRY_TOLERANCE_MM:
+            raise RuntimeError(f"ESP pin hits base under {pad['ref']}/{pad['pin']}: gap {gap} mm")
+        worst_gap = min(worst_gap, gap)
+    return {"pcb_source": "hardware/design.json", "module_pads_checked": len(module_pads),
+            "pin_tip_z_mm": pin_tip_z, "normal_floor_clearance_mm": rib_gap,
+            "minimum_pad_clearance_mm": worst_gap}
 
 
 def executable(variable, name, windows_path):
@@ -273,8 +328,8 @@ def export(scad, selector, output, source=SOURCE, work=WORK):
     return mesh_info(output)
 
 
-def check_pin_stack(log_path, exposed_mm):
-    """Check the rendered ESP pin stack against the measured exposed length."""
+def check_pin_stack(log_path, exposed_mm, tail_mm):
+    """Check total pin projection and the independently specified exposed tail."""
     log = log_path.read_text(encoding="utf-8")
     match = re.search(r"\besp_pin_stack_mm = (\[[^\]\r\n]+\])", log)
     if not match:
@@ -283,13 +338,12 @@ def check_pin_stack(log_path, exposed_mm):
     if len(values) != 4 or not all(isinstance(value, (int, float)) for value in values):
         raise RuntimeError(f"Invalid ESP pin stack in {log_path}: {values}")
     exposed, spacer, shield, tail = values
-    expected = (exposed_mm, HEADER_SPACER_MM, SHIELD_THICKNESS_MM,
-                exposed_mm - HEADER_SPACER_MM - SHIELD_THICKNESS_MM)
+    expected = (exposed_mm, HEADER_SPACER_MM, SHIELD_THICKNESS_MM, tail_mm)
     if any(abs(actual - nominal) > GEOMETRY_TOLERANCE_MM
            for actual, nominal in zip(values, expected)):
         raise RuntimeError(f"ESP pin stack differs from the intended assembly: {values} != {expected}")
-    if tail <= 0 or tail > MAX_SOLDER_TAIL_MM:
-        raise RuntimeError(f"ESP pin tip cannot be accommodated by this base: {tail} mm")
+    if abs(exposed-spacer-shield-tail) > GEOMETRY_TOLERANCE_MM:
+        raise RuntimeError(f"Inconsistent ESP pin stack: {values}")
     return {"pin_exposed_below_esp_mm": exposed, "header_spacer_mm": spacer,
             "shield_thickness_mm": shield, "pin_tail_below_shield_mm": tail}
 
@@ -298,7 +352,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preview-only", action="store_true")
     parser.add_argument("--model-b", action="store_true",
-                        help="export the 4.5-mm ESP-pin model into enclosure/model-b")
+                        help="export the 4.5-mm below-shield ESP-pin model into enclosure/model-b")
     args = parser.parse_args()
     output_root = MODEL_B_ROOT if args.model_b else ROOT
     source = MODEL_B_SOURCE if args.model_b else SOURCE
@@ -312,7 +366,8 @@ def main():
                      "usb_front", "usb_connected"):
             center_z = 32 if name == "exploded" else 11
             target_y = 31 if name == "layout" else 11.26
-            camera = ("70,90,55,19.5,8,9" if name == "section" else
+            # Look into the exposed rear cut plane, not at the intact USB wall.
+            camera = ("65,-80,38,19.5,16,8.5" if name == "section" else
                       f"100,-115,110,19.5,{target_y},{center_z}")
             if name == "top":
                 camera = "19.5,11.26,0,0,0,0,150"
@@ -356,7 +411,8 @@ def main():
         report["parts"][part] = info
         print(f"{part}: one closed mesh, {info['volume_mm3']} mm3", flush=True)
     report["esp_pin_stack"] = check_pin_stack(
-        work / "base.log", MODEL_B_PIN_EXPOSED_MM if args.model_b else MODEL_A_PIN_EXPOSED_MM)
+        work / "base.log", MODEL_B_PIN_EXPOSED_MM if args.model_b else MODEL_A_PIN_EXPOSED_MM,
+        MODEL_B_PIN_TAIL_MM if args.model_b else MODEL_A_PIN_TAIL_MM)
     print(f"ESP pin stack: {report['esp_pin_stack']['pin_tail_below_shield_mm']:.1f} mm "
           "metal tail under shield", flush=True)
     report["pcb_orientation"] = check_pcb_orientation(
@@ -368,6 +424,16 @@ def main():
     report["solder_reliefs"] = check_solder_reliefs(
         output_root / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json")
     print("Solder wells: all THT pads relieved; central floor rib intact", flush=True)
+    report["pcb_seats"] = check_pcb_seats(
+        output_root / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json",
+        MODEL_B_PCB_UNDERSIDE_MM if args.model_b else MODEL_A_PCB_UNDERSIDE_MM,
+        MODEL_B_SUPPORT_DEPTH_MM if args.model_b else MODEL_A_SUPPORT_DEPTH_MM)
+    print("PCB seats: four mesh seats at the specified board height", flush=True)
+    if args.model_b:
+        report["esp_pin_clearance"] = check_esp_pin_clearance(
+            output_root / "TB2_C3_Case_base.stl", ROOT.parent / "hardware/design.json",
+            MODEL_B_PCB_UNDERSIDE_MM, MODEL_B_PIN_TAIL_MM)
+        print("ESP pin tips: 4.5 mm projection checked against every module pad", flush=True)
     report["light_channel"] = check_light_channel(
         output_root / "TB2_C3_Case_lid.stl", ROOT.parent / "hardware/design.json")
     print(f"LED tube: continuous wall extends "
@@ -375,7 +441,7 @@ def main():
           flush=True)
     report["usb_entry"] = check_usb_entry(
         output_root / "TB2_C3_Case_base.stl", output_root / "TB2_C3_Case_lid.stl",
-        ROOT.parent / "hardware/design.json")
+        ROOT.parent / "hardware/design.json", MODEL_B_ELEVATION_MM if args.model_b else 0.0)
     print("USB entry: enclosed port with intact side shoulders", flush=True)
     for name in COLLISIONS:
         info = export(scad, "collision_" + name, work / ("collision_" + name + ".stl"),

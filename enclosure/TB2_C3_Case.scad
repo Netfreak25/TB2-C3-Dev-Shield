@@ -21,6 +21,7 @@ pcb_hold_gap = 0.2;
 solder_clearance = 0.8;
 solder_tail_max = 1.3;
 solder_relief_floor_t = 0.8;
+pin_floor_clearance = 0.3;
 print_layer_h = 0.2;
 
 /* [ACT light channel] */
@@ -44,8 +45,9 @@ star_h = 3.2;
 star_tip = 0.8;
 /* [ESP32 stack - measure your module] */
 header_spacer_h = 2.5;
-// Default retains the existing 1.3-mm ESP pin envelope below the shield.
-// Model B overrides this with the measured exposed length below the ESP PCB.
+// Pin projection is measured from the SHIELD underside, independently of
+// the spacer between the two boards. Model B overrides the projection.
+esp_pin_tail_below_shield = solder_tail_max;
 module_pcb_t = 1.6;
 module_component_h = 2.2;
 module_roof_clearance = 0.5;
@@ -83,10 +85,9 @@ eps = 0.01;
 pcb_w = 39;
 pcb_d = 22.52;
 pcb_t = 1.6;
-esp_pin_exposed_h = header_spacer_h + pcb_t + solder_tail_max;
+esp_pin_exposed_h = header_spacer_h + pcb_t + esp_pin_tail_below_shield;
 pcb_z = floor_t + solder_clearance;
 pcb_top = pcb_z + pcb_t;
-esp_pin_tail_below_shield = esp_pin_exposed_h - header_spacer_h - pcb_t;
 module_x = 2.6;
 module_w = 18;
 module_center = module_x + module_w/2;
@@ -158,8 +159,9 @@ assert(mark_depth<wall && (case_top+letter_h)/2<seam_z,
        "Lettering must leave a wall backing and stay below the lid seam");
 assert(pcb_z-solder_tail_max>solder_relief_floor_t+0.2,
        "Trim the THT leads to maintain clearance above the floor wells");
-assert(esp_pin_tail_below_shield>=0 && esp_pin_tail_below_shield<=solder_tail_max,
-       "ESP pins must reach through the shield without exceeding the solder-well depth");
+assert(esp_pin_tail_below_shield>0
+       && pcb_z-esp_pin_tail_below_shield>=solder_relief_floor_t+pin_floor_clearance-eps,
+       "ESP pins below the shield must clear the well floor");
 assert(front_overhang>front_wall_t && front_overhang-front_wall_t>=pcb_xy_clearance,
        "The front wall must clear the shield PCB edge");
 assert(usb_port_w>usb_shell_w && usb_port_w>usb_tongue_w

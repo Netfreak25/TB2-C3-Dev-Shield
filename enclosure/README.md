@@ -4,7 +4,7 @@ A compact, two-piece dock for a **directly soldered ESP32-C3 SuperMini on the TB
 
 **Enclosure Rev. 0.8 — unverified build candidate.** The meshes and component envelopes have been checked digitally. No print or physical fit test has been performed. The electronics in these previews are simplified dimensional references.
 
-For an ESP32 whose pins extend **4.5 mm below its PCB**, see the separate [Model B](model-b/README.md). It keeps the one-spacer mounting height and models the resulting 0.4-mm pin tips beneath the shield.
+For pins extending **4.5 mm below the shield PCB**, use the taller [Model B](model-b/README.md). Its 4.8-mm space above the normal floor accommodates the full pin projection plus 0.3 mm clearance. Supports, USB opening and closed roof are raised together by 4 mm; the case is 17 mm high. The 2.5-mm spacer between the ESP32 and shield remains the same.
 
 ![Assembled flat dock](assembly.png)
 

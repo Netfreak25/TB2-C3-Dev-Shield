@@ -51,7 +51,7 @@ For factory assembly, JP1 includes **the two pins only**: no removable shunt is 
 
 The optional white [two-piece flat dock](enclosure/README.md) fits a SuperMini soldered directly to the shield through standard pinheaders, with one 2.5 mm spacer between the PCBs. The PCB sits 0.8 mm above the interior floor, with shallow wells for trimmed solder joints. A flat lid covers the ESP32 except for USB-C and small BOOT/RESET access holes; the cable connector and power jumper remain accessible. OpenSCAD source, separate STL files and assembly instructions are included. **The enclosure is an unverified build candidate; physical print and fit tests are pending.**
 
-The [4.5-mm-pin Model B](enclosure/model-b/README.md) provides a separate checked case package for pins projecting 4.5 mm below the ESP32 PCB.
+The taller [Model B](enclosure/model-b/README.md) provides 4.8 mm of clearance below the shield for pins projecting 4.5 mm beneath the **shield PCB**. Its raised supports, USB opening and closed roof move together; overall case height is 17 mm.
 
 ![TB2 C3 flat dock](enclosure/assembly.png)
 
